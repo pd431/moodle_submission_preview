@@ -25,6 +25,7 @@ import Ajax from 'core/ajax';
 import Templates from 'core/templates';
 import Notification from 'core/notification';
 import Pending from 'core/pending';
+import {renderAll} from 'local_submissioncheck/preview';
 
 /** How often to ask whether a preview is ready, in milliseconds. */
 const POLL_INTERVAL = 5000;
@@ -67,6 +68,7 @@ const poll = (report, count) => {
                 const replacement = report.querySelector('[data-region="local-submissioncheck-report"]');
                 if (replacement) {
                     report.replaceWith(replacement);
+                    renderAll(replacement);
                     if (response.pending) {
                         poll(replacement, count + 1);
                     }
@@ -89,6 +91,7 @@ export const init = (id) => {
             return;
         }
         moveToTop(wrapper);
+        renderAll(wrapper);
         const report = wrapper.querySelector('[data-region="local-submissioncheck-report"]');
         if (report && report.dataset.pending) {
             poll(report, 0);

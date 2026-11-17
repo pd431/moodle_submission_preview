@@ -197,11 +197,11 @@ Feature: Students check a preview of their assignment file straight after submit
     And I click on "Check your submission to Essay 1" "link"
     And I should see "No problems found in essay.docx"
 
-  Scenario: If preview conversion is unavailable the submission is unaffected
+  Scenario: If preview conversion is unavailable for a file only a converter can preview, the submission is unaffected
     Given the submission check converter is unavailable
     And I am on the "Essay 1" "assign activity" page logged in as "student1"
     And I press "Add submission"
-    And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
+    And I upload "local/submissioncheck/tests/fixtures/essay.rtf" file to "File submissions" filemanager
     When I press "Save changes"
     Then I should see "A preview isn't available right now. Your file has been submitted."
     And I should see "Submitted for grading"

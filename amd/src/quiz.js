@@ -23,6 +23,7 @@
 
 import Ajax from 'core/ajax';
 import Templates from 'core/templates';
+import {renderAll} from 'local_submissioncheck/preview';
 import Notification from 'core/notification';
 
 /** How often to ask whether a preview is ready, in milliseconds. */
@@ -51,6 +52,7 @@ const checkQuestion = (cmid, attemptid, slot, input, container, count) => {
     }])[0].then((response) => {
         // Replacing is synchronous in some Moodle versions and returns a promise in others.
         return Promise.resolve(Templates.replaceNodeContents(container, response.html, '')).then(() => {
+            renderAll(container);
             if (response.pending && count < MAX_POLLS) {
                 window.setTimeout(() => checkQuestion(cmid, attemptid, slot, input, container, count + 1), POLL_INTERVAL);
             }
@@ -117,6 +119,7 @@ const initSummaryPage = (cmid, attemptid) => {
         needsAck = response.needsack;
         // Replacing is synchronous in some Moodle versions and returns a promise in others.
         return Promise.resolve(Templates.replaceNodeContents(container, response.html, '')).then(() => {
+            renderAll(container);
             const box = container.querySelector('[data-region="local-submissioncheck-ack"]');
             if (box && (ticked || acknowledged)) {
                 box.checked = true;

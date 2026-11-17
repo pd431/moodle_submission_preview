@@ -82,6 +82,51 @@ class behat_local_submissioncheck extends behat_base {
     }
 
     /**
+     * A preview made on the server (shown in a frame) contains some text. Opens the frame's page in this session.
+     *
+     * @Then /^the preview of "(?P<file>[^"]*)" should show "(?P<text>[^"]*)"$/
+     * @param string $filename
+     * @param string $text
+     */
+    public function the_preview_should_show(string $filename, string $text) {
+        $region = $this->find('local_submissioncheck > Preview', get_string('previewof', 'local_submissioncheck', $filename));
+        $frame = $region->find('css', 'iframe[data-region="local-submissioncheck-frame"]');
+        if (!$frame) {
+            throw new ExpectationException("No preview frame for $filename", $this->getSession());
+        }
+        $this->getSession()->visit($this->locate_path($frame->getAttribute('src')));
+        $this->execute('behat_general::assert_page_contains_text', [$text]);
+    }
+
+    /**
+     * A Word document drawn in the browser contains some text.
+     *
+     * @Then /^the Word preview of "(?P<file>[^"]*)" should show "(?P<text>[^"]*)"$/
+     * @param string $filename
+     * @param string $text
+     */
+    public function the_word_preview_should_show(string $filename, string $text) {
+        $label = get_string('previewof', 'local_submissioncheck', $filename);
+        $this->find('local_submissioncheck > Preview', $label);
+        $script = 'return (function(label, text) {' .
+            'var regions = document.querySelectorAll(\'[data-region="local-submissioncheck-docx"]\');' .
+            'for (var i = 0; i < regions.length; i++) {' .
+            '  var frame = regions[i].dataset.label === label ? regions[i].querySelector("iframe") : null;' .
+            '  if (frame && regions[i].dataset.rendered && frame.contentDocument.body.textContent.indexOf(text) !== -1) {' .
+            '    return true;' .
+            '  }' .
+            '}' .
+            'return false;' .
+            '})(' . json_encode($label) . ', ' . json_encode($text) . ');';
+        $this->spin(function () use ($script) {
+            return (bool) $this->evaluate_script($script);
+        }, [], behat_base::get_extended_timeout(), new ExpectationException(
+            "The Word preview of $filename does not show \"$text\"",
+            $this->getSession()
+        ));
+    }
+
+    /**
      * Move the current upload of a student's submission (and Moodle's submission time) to another time.
      *
      * @Given /^the submission check upload time for "(?P<user>[^"]*)" in "(?P<activity>[^"]*)" is "(?P<time>[^"]*)"$/

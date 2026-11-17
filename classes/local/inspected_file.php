@@ -54,6 +54,18 @@ class inspected_file {
     public const TYPE_PNG = 'png';
     /** @var string */
     public const TYPE_GIF = 'gif';
+    /** @var string WebP picture. */
+    public const TYPE_WEBP = 'webp';
+    /** @var string MPEG-4 or QuickTime video or sound (mp4, m4v, m4a, mov). */
+    public const TYPE_MP4 = 'mp4';
+    /** @var string WebM or Matroska video. */
+    public const TYPE_WEBM = 'webm';
+    /** @var string MP3 sound. */
+    public const TYPE_MP3 = 'mp3';
+    /** @var string WAV sound. */
+    public const TYPE_WAV = 'wav';
+    /** @var string Ogg sound. */
+    public const TYPE_OGG = 'ogg';
     /** @var string */
     public const TYPE_RTF = 'rtf';
     /** @var string */
@@ -307,6 +319,10 @@ class inspected_file {
         if (strncmp($head, "L\x00\x00\x00\x01\x14\x02\x00", 8) === 0) {
             return self::TYPE_LNK;
         }
+        $media = self::media_type_from_head($head);
+        if ($media !== null) {
+            return $media;
+        }
         $text = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $head));
         if (strncmp($text, '{\\rtf', 5) === 0) {
             return self::TYPE_RTF;
@@ -319,6 +335,35 @@ class inspected_file {
             return self::TYPE_HTML;
         }
         return self::TYPE_UNKNOWN;
+    }
+
+    /**
+     * Pictures and media other than JPEG, PNG and GIF, from their first bytes.
+     *
+     * @param string $head
+     * @return string|null
+     */
+    protected static function media_type_from_head(string $head): ?string {
+        if (strncmp($head, 'RIFF', 4) === 0 && substr($head, 8, 4) === 'WEBP') {
+            return self::TYPE_WEBP;
+        }
+        if (strncmp($head, 'RIFF', 4) === 0 && substr($head, 8, 4) === 'WAVE') {
+            return self::TYPE_WAV;
+        }
+        if (substr($head, 4, 4) === 'ftyp') {
+            return self::TYPE_MP4;
+        }
+        if (strncmp($head, "\x1A\x45\xDF\xA3", 4) === 0) {
+            return self::TYPE_WEBM;
+        }
+        if (strncmp($head, 'OggS', 4) === 0) {
+            return self::TYPE_OGG;
+        }
+        $framesync = strlen($head) > 1 && $head[0] === "\xFF" && (ord($head[1]) & 0xE0) === 0xE0;
+        if ($framesync || preg_match('/^ID3[\x02-\x04]\x00/', $head)) {
+            return self::TYPE_MP3;
+        }
+        return null;
     }
 
     /**

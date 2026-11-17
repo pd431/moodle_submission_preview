@@ -71,9 +71,29 @@
         {{#previewimage}}
         <img class="img-fluid border" src="{{previewurl}}" alt="{{previewlabel}}">
         {{/previewimage}}
+        {{#previewvideo}}
+        <video class="local-submissioncheck-media w-100 border" controls preload="metadata" src="{{previewurl}}"
+               aria-label="{{previewlabel}}"></video>
+        {{/previewvideo}}
+        {{#previewaudio}}
+        <audio class="w-100" controls preload="metadata" src="{{previewurl}}" aria-label="{{previewlabel}}"></audio>
+        {{/previewaudio}}
+        {{#previewhtml}}
+        {{#previewtextonly}}<p class="small text-muted mb-1">{{previewtextonlymessage}}</p>{{/previewtextonly}}
+        <iframe class="local-submissioncheck-frame w-100 border" sandbox="" src="{{previewurl}}" title="{{previewlabel}}"
+                data-region="local-submissioncheck-frame"></iframe>
+        <p class="small mb-0"><a href="{{previewurl}}" target="_blank">{{openpreview}}</a></p>
+        {{/previewhtml}}
+        {{#previewdocx}}
+        <div class="local-submissioncheck-docx border" data-region="local-submissioncheck-docx" data-url="{{previewurl}}"
+             data-label="{{previewlabel}}" data-failed="{{previewunavailablemessage}}">
+            <p class="text-muted m-2" role="status">{{previewloadingmessage}}</p>
+        </div>
+        {{/previewdocx}}
     {{/previewready}}
     {{#previewpending}}<p class="text-muted" role="status">{{previewpendingmessage}}</p>{{/previewpending}}
     {{#previewunsupported}}<p class="text-muted">{{previewunsupportedmessage}}</p>{{/previewunsupported}}
     {{#previewunavailable}}<p class="alert alert-info">{{previewunavailablemessage}}</p>{{/previewunavailable}}
+    {{#previewtoolarge}}<p class="text-muted">{{previewtoolargemessage}}</p>{{/previewtoolarge}}
 </div>
 {{/files}}

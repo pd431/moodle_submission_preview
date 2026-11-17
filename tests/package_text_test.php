@@ -31,7 +31,7 @@ use local_submissioncheck\local\package_text;
 #[\PHPUnit\Framework\Attributes\CoversClass(local\package_text::class)]
 final class package_text_test extends \advanced_testcase {
     /** Content types part every Office package has. */
-    const TYPES = '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>';
+    public const TYPES = '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>';
 
     /**
      * Open a zip package with given entries for inspection.
@@ -67,8 +67,10 @@ final class package_text_test extends \advanced_testcase {
             '<w:p/></w:body></w:document>';
         $file = $this->package(['[Content_Types].xml' => self::TYPES, 'word/document.xml' => $doc], 'essay.docx');
         $this->assertSame(package_text::KIND_WORD, package_text::kind($file));
-        $this->assertSame([['slide' => null, 'paragraphs' => ['Title', "One two\nthree", 'Box']]],
-            package_text::sections($file, 10));
+        $this->assertSame(
+            [['slide' => null, 'paragraphs' => ['Title', "One two\nthree", 'Box']]],
+            package_text::sections($file, 10)
+        );
     }
 
     /**
@@ -99,16 +101,22 @@ final class package_text_test extends \advanced_testcase {
             '<text:h>Heading</text:h><text:p>Some <text:span>styled</text:span><text:s/>text<text:line-break/>more</text:p>' .
             '</office:text></office:body></office:document-content>';
         $file = $this->package(['mimetype' => 'application/vnd.oasis.opendocument.text', 'content.xml' => $text], 'a.odt');
-        $this->assertSame([['slide' => null, 'paragraphs' => ['Heading', "Some styled text\nmore"]]],
-            package_text::sections($file, 10));
+        $this->assertSame(
+            [['slide' => null, 'paragraphs' => ['Heading', "Some styled text\nmore"]]],
+            package_text::sections($file, 10)
+        );
 
         $slides = '<office:document-content xmlns:office="o" xmlns:text="t" xmlns:draw="d"><office:body>' .
             '<office:presentation><draw:page><draw:frame><draw:text-box><text:p>First</text:p></draw:text-box></draw:frame>' .
             '</draw:page><draw:page/></office:presentation></office:body></office:document-content>';
-        $file = $this->package(['mimetype' => 'application/vnd.oasis.opendocument.presentation', 'content.xml' => $slides],
-            'a.odp');
-        $this->assertSame([['slide' => 1, 'paragraphs' => ['First']], ['slide' => 2, 'paragraphs' => []]],
-            package_text::sections($file, 10));
+        $file = $this->package(
+            ['mimetype' => 'application/vnd.oasis.opendocument.presentation', 'content.xml' => $slides],
+            'a.odp'
+        );
+        $this->assertSame(
+            [['slide' => 1, 'paragraphs' => ['First']], ['slide' => 2, 'paragraphs' => []]],
+            package_text::sections($file, 10)
+        );
     }
 
     /**

@@ -94,8 +94,15 @@ class report_builder {
             'incomplete' => !$result->complete && !$result->is_unavailable(),
             'incompletemessage' => get_string('checksincomplete', 'local_submissioncheck', $name),
             'previewready' => $status['status'] === preview::READY,
-            'previewpdf' => $status['kind'] === 'pdf',
-            'previewimage' => $status['kind'] === 'image',
+            'previewpdf' => $status['kind'] === preview::KIND_PDF,
+            'previewimage' => $status['kind'] === preview::KIND_IMAGE,
+            'previewvideo' => $status['kind'] === preview::KIND_VIDEO,
+            'previewaudio' => $status['kind'] === preview::KIND_AUDIO,
+            'previewdocx' => $status['kind'] === preview::KIND_DOCX,
+            'previewhtml' => $status['kind'] === preview::KIND_HTML,
+            'previewtextonly' => $status['textonly'],
+            'previewtextonlymessage' => get_string('previewtextonly', 'local_submissioncheck'),
+            'previewloadingmessage' => get_string('previewloading', 'local_submissioncheck', $name),
             'previewurl' => $url->out(false),
             'openpreview' => get_string('openpreview', 'local_submissioncheck', $name),
             'previewpending' => $status['status'] === preview::PENDING,
@@ -104,6 +111,8 @@ class report_builder {
             'previewunsupportedmessage' => get_string('previewunsupported', 'local_submissioncheck', $name),
             'previewunavailable' => $status['status'] === preview::UNAVAILABLE,
             'previewunavailablemessage' => get_string('previewunavailable_' . $unavailablekey, 'local_submissioncheck'),
+            'previewtoolarge' => $status['status'] === preview::TOO_LARGE,
+            'previewtoolargemessage' => get_string('previewtoolarge', 'local_submissioncheck', $name),
         ];
     }
 

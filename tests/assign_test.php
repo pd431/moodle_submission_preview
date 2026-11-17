@@ -262,10 +262,13 @@ final class assign_test extends \advanced_testcase {
         testing::set('service_down', true);
         testing::set('converter_down', true);
         $cm = $this->make_assign();
-        $this->submit($cm, $this->student, ['essay.docx']);
+        $this->submit($cm, $this->student, ['essay.rtf', 'essay.docx']);
         $report = assign_adapter::report($cm, (int) $this->student->id);
-        $this->assertTrue($report['files'][0]['checksunavailable']);
-        $this->assertTrue($report['files'][0]['previewunavailable']);
+        $files = array_column($report['files'], null, 'name');
+        $this->assertTrue($files['essay.rtf']['checksunavailable']);
+        $this->assertTrue($files['essay.rtf']['previewunavailable']);
+        // Without the converter, a Word document is still drawn in the browser.
+        $this->assertTrue($files['essay.docx']['previewdocx']);
     }
 
     public function test_group_submission(): void {

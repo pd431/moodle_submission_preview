@@ -27,6 +27,7 @@ require_once(__DIR__ . '/../../config.php');
 
 use local_submissioncheck\local\adapter\assign as assign_adapter;
 use local_submissioncheck\local\adapter\quiz as quiz_adapter;
+use local_submissioncheck\local\html_preview;
 use local_submissioncheck\local\preview;
 
 $fileid = required_param('fileid', PARAM_INT);
@@ -64,6 +65,27 @@ $previewfile = preview::get_preview_file($file);
 if (!$previewfile) {
     send_file_not_found();
 }
+
+if (preview::get_status($file, false)['kind'] === preview::KIND_HTML) {
+    // Made here from the student's file: sandboxed, so nothing in it can run scripts, reach this site as the
+    // student, or load anything from elsewhere.
+    raise_memory_limit(MEMORY_EXTRA);
+    core_php_time_limit::raise(60);
+    \core\session\manager::write_close();
+    $html = html_preview::render($file);
+    if ($html === null) {
+        $html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><p>' .
+            s(get_string('previewcouldnotread', 'local_submissioncheck', $file->get_filename())) . '</p></body></html>';
+    }
+    header('Content-Type: text/html');
+    header("Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:");
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: no-referrer');
+    header('Cache-Control: private, no-store');
+    echo $html;
+    die;
+}
+
 \core\session\manager::write_close();
 $name = $previewfile === $file ? $file->get_filename() : pathinfo($file->get_filename(), PATHINFO_FILENAME) . '.pdf';
 send_stored_file($previewfile, 0, 0, false, ['filename' => $name, 'dontdie' => false]);
