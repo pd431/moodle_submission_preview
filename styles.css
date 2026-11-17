@@ -16,3 +16,19 @@
 .local-submissioncheck-media {
     max-height: 70vh;
 }
+
+.local-submissioncheck-factlist {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+}
+
+.local-submissioncheck-factlist dt {
+    font-weight: normal;
+    color: var(--bs-secondary-color, #5c6670);
+}
+
+.local-submissioncheck-factlist dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}

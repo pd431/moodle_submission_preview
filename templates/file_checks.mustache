@@ -1,0 +1,49 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_submissioncheck/file_checks
+
+    One file's check results.
+
+    Example context (json):
+    {"name": "essay.docx", "checkslabel": "Submission checks for essay.docx", "ok": true,
+        "okmessage": "No problems found in essay.docx", "hasfindings": false, "findings": []}
+}}
+<div class="local-submissioncheck-checks mb-3" role="region" aria-label="{{checkslabel}}">
+    {{#ok}}
+    <p class="local-submissioncheck-ok mb-1"><i class="icon fa fa-check text-success" aria-hidden="true"></i>{{okmessage}}</p>
+    {{/ok}}
+    {{#hasfindings}}
+    <div class="alert alert-warning mb-1">
+        <p class="mb-1"><strong>{{name}}</strong></p>
+        {{#findings}}
+        <p class="mb-1">{{message}}</p>
+        {{#hasitems}}
+        <ul class="mb-1">
+            {{#items}}<li>{{name}}</li>{{/items}}
+        </ul>
+        {{/hasitems}}
+        {{/findings}}
+    </div>
+    {{/hasfindings}}
+    {{#checksunavailable}}
+    <p class="alert alert-info mb-1">{{checksunavailablemessage}}</p>
+    {{/checksunavailable}}
+    {{#incomplete}}
+    <p class="text-muted mb-1">{{incompletemessage}}</p>
+    {{/incomplete}}
+</div>

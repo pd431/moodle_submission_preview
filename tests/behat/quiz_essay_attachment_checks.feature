@@ -41,6 +41,13 @@ Feature: Students see checks and a preview of files attached to quiz essay quest
     And I should see "This is an approximate preview of your document(s). Layout may be approximate. Use it to check this is what you intended to submit to RS101 Quiz 1, and that it has all the content you expect, and the latest changes you made to it."
     And "Preview of linked-media.pptx" "local_submissioncheck > Preview" should exist
 
+  Scenario: Quiz attachments show their facts under the question
+    Given I am on the "Quiz 1" "mod_quiz > View" page logged in as "student1"
+    And I press "Attempt quiz"
+    When I upload "local/submissioncheck/tests/fixtures/essay.docx" file to the attachments of "Question 1"
+    Then I should see "About this file"
+    And I should see "Word document" in the "About essay.docx" "local_submissioncheck > Facts"
+
   Scenario: Questions without attachments are left alone
     Given I am on the "Quiz 1" "mod_quiz > View" page logged in as "student1"
     When I press "Attempt quiz"

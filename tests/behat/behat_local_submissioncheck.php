@@ -51,6 +51,12 @@ class behat_local_submissioncheck extends behat_base {
             new behat_component_named_selector('Checks', [
                 ".//*[@role='region' and contains(@class, 'local-submissioncheck-checks') and @aria-label=%locator%]",
             ]),
+            new behat_component_named_selector('Facts', [
+                ".//*[@role='region' and contains(@class, 'local-submissioncheck-facts') and @aria-label=%locator%]",
+            ]),
+            new behat_component_named_selector('File tab', [
+                ".//*[@role='tab' and @data-filename=%locator%]",
+            ]),
         ];
     }
 
