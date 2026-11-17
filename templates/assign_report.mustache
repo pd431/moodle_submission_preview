@@ -1,0 +1,57 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_submissioncheck/assign_report
+
+    The check report on the assignment page: when the work was submitted, the confirmation window,
+    the checks and previews, and the student's two answers.
+
+    Example context (json):
+    {
+        "uniqid": "local-submissioncheck-1", "cmid": 5, "heading": "Check your submission",
+        "submitted": "You submitted this file at 11:58.", "awaiting": true,
+        "windowmessage": "Check this report thoroughly.", "disclaimer": "Approximate preview.", "files": [],
+        "actions": {"url": "#", "sesskey": "x", "uploadid": 1, "confirmlabel": "Yes", "backlabel": "No",
+            "backdisabled": false, "backreason": ""}
+    }
+}}
+<section id="{{uniqid}}" class="local-submissioncheck card mb-3" aria-labelledby="{{uniqid}}-heading"
+         data-region="local-submissioncheck-report" data-cmid="{{cmid}}" {{#pending}}data-pending="1"{{/pending}}>
+    <div class="card-body">
+        <h3 id="{{uniqid}}-heading" class="h4 card-title">{{heading}}</h3>
+        {{#continuing}}
+        <p class="alert alert-primary"><strong>{{continuingmessage}}</strong></p>
+        {{/continuing}}
+        <p class="mb-1">{{submitted}}</p>
+        {{#awaiting}}<p>{{windowmessage}}</p>{{/awaiting}}
+        {{#statusmessage}}<p class="alert alert-success">{{statusmessage}}</p>{{/statusmessage}}
+        {{#latemessage}}<p class="alert alert-warning">{{latemessage}}</p>{{/latemessage}}
+
+        {{> local_submissioncheck/files }}
+
+        {{#actions}}
+        <form method="post" action="{{url}}" class="local-submissioncheck-actions d-flex flex-wrap align-items-start">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <input type="hidden" name="uploadid" value="{{uploadid}}">
+            <button type="submit" name="action" value="confirm" class="btn btn-primary mb-2">{{confirmlabel}}</button>
+            <button type="submit" name="action" value="back" class="btn btn-secondary mb-2"
+                {{#backdisabled}}disabled aria-describedby="{{uniqid}}-backreason"{{/backdisabled}}>{{backlabel}}</button>
+        </form>
+        {{#backdisabled}}<p id="{{uniqid}}-backreason" class="text-muted">{{backreason}}</p>{{/backdisabled}}
+        {{/actions}}
+    </div>
+</section>
