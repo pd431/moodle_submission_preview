@@ -72,8 +72,9 @@ if (preview::get_status($file, false)['kind'] === preview::KIND_HTML) {
     // student, or load anything from elsewhere.
     raise_memory_limit(MEMORY_EXTRA);
     core_php_time_limit::raise(60);
-    \core\session\manager::write_close();
+    // Rendering uses templates, which can touch the session's caches, so the session closes after it.
     $html = html_preview::render($file);
+    \core\session\manager::write_close();
     if ($html === null) {
         $html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body><p>' .
             s(get_string('previewcouldnotread', 'local_submissioncheck', $file->get_filename())) . '</p></body></html>';

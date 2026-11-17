@@ -26,8 +26,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "Submitted for grading"
-    And I should see "You submitted this file at"
+    Then I should see "You submitted this file at"
     And I should see "Check this report thoroughly. You have 15 minutes to confirm this is the file you intended to submit. Unless you choose to resubmit, your recorded submission timestamp will remain"
     And I should see "No problems found in essay.docx"
     And I should see "This is an approximate preview of your document(s). Layout may be approximate. Use it to check this is what you intended to submit to RS101 Essay 1, and that it has all the content you expect, and the latest changes you made to it."
@@ -36,6 +35,8 @@ Feature: Students check a preview of their assignment file straight after submit
     And I should see "About this file"
     And "Yes, this is the file I intended to submit" "button" should exist
     And "No, wrong file: take me back" "button" should exist
+    And I am on the "Essay 1" "assign activity" page
+    And I should see "Submitted for grading"
 
   Scenario: Confirming records it and keeps the upload time
     Given I am on the "Essay 1" "assign activity" page logged in as "student1"
@@ -212,6 +213,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I upload "local/submissioncheck/tests/fixtures/essay.rtf" file to "File submissions" filemanager
     When I press "Save changes"
     Then I should see "A preview isn't available right now. Your file has been submitted."
+    And I am on the "Essay 1" "assign activity" page
     And I should see "Submitted for grading"
 
   Scenario: A file type with no preview says so instead of showing nothing
