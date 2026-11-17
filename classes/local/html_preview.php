@@ -259,8 +259,10 @@ class html_preview {
             $missing[$item['slide'] ?? 0][] = $item['name'];
         }
         $box = function (string $name) use ($OUTPUT): string {
-            return $OUTPUT->render_from_template('local_submissioncheck/missing_item',
-                ['message' => get_string('missingitem', 'local_submissioncheck', $name)]);
+            return $OUTPUT->render_from_template(
+                'local_submissioncheck/missing_item',
+                ['message' => get_string('missingitem', 'local_submissioncheck', $name)]
+            );
         };
         $html = '';
         foreach ($sections as $section) {

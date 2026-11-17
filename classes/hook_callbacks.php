@@ -55,9 +55,9 @@ class hook_callbacks {
                 case 'mod-assign-view':
                     $action = optional_param('action', '', PARAM_ALPHA);
                     if (in_array($action, ['', 'view'], true)) {
-                        $data = assign_adapter::report($cm, (int) $USER->id);
+                        $data = assign_adapter::report($cm, (int) $USER->id, false);
                         if ($data) {
-                            $html .= $OUTPUT->render_from_template('local_submissioncheck/assign_report', $data);
+                            $html .= $OUTPUT->render_from_template('local_submissioncheck/banner', $data);
                         }
                         $html .= self::staff_notes($cm);
                     }
@@ -83,6 +83,35 @@ class hook_callbacks {
             }
         } catch (\Throwable $e) {
             debugging('Submission checks could not add to the page: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+    }
+
+    /**
+     * Send a student who has just saved files on an assignment straight to the review page for them.
+     *
+     * Only for the upload they made in this session and while it awaits their answer; any other visit to the
+     * assignment page shows the banner instead. Any failure leaves the page as Moodle made it.
+     *
+     * @param \core\hook\output\before_http_headers $hook
+     */
+    public static function before_http_headers(\core\hook\output\before_http_headers $hook): void {
+        global $PAGE, $USER;
+        try {
+            if (during_initial_install() || !isloggedin() || isguestuser() || $PAGE->pagetype !== 'mod-assign-view') {
+                return;
+            }
+            $cm = $PAGE->cm;
+            if (!$cm || $cm->modname !== 'assign' || !activation::is_switched_on($cm)) {
+                return;
+            }
+            if (!in_array(optional_param('action', '', PARAM_ALPHA), ['', 'view'], true)) {
+                return;
+            }
+            if (assign_adapter::take_review_flag($cm, (int) $USER->id)) {
+                redirect(assign_adapter::review_url($cm->id));
+            }
+        } catch (\moodle_exception $e) {
+            debugging('Submission checks could not open the review page: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
     }
 

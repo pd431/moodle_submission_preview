@@ -121,9 +121,42 @@ class assign {
                 (int) $event->userid,
                 $files
             );
+            self::flag_for_review($cm->id, (int) $event->userid);
         } catch (\Throwable $e) {
             debugging('Submission checks could not record an assignment upload: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
+    }
+
+    /**
+     * Remember, for this session only, that the student just uploaded here, so the next assignment page they open sends
+     * them to the review page. Uploads made by someone else for them are not flagged in their session.
+     *
+     * @param int $cmid
+     * @param int $uploaderid
+     */
+    protected static function flag_for_review(int $cmid, int $uploaderid): void {
+        global $SESSION, $USER;
+        if ($uploaderid === (int) $USER->id) {
+            $SESSION->local_submissioncheck_review = $cmid;
+        }
+    }
+
+    /**
+     * Whether to send the student from the assignment page to the review page now: they just uploaded here in this
+     * session and the upload is awaiting their answer. Asking clears the flag.
+     *
+     * @param \cm_info $cm
+     * @param int $userid
+     * @return bool
+     */
+    public static function take_review_flag(\cm_info $cm, int $userid): bool {
+        global $SESSION;
+        if ((int) ($SESSION->local_submissioncheck_review ?? 0) !== (int) $cm->id) {
+            return false;
+        }
+        unset($SESSION->local_submissioncheck_review);
+        $data = self::report($cm, $userid, false);
+        return $data && $data['awaiting'];
     }
 
     /**
@@ -147,9 +180,10 @@ class assign {
      *
      * @param \cm_info $cm
      * @param int $userid
+     * @param bool $markseen Remember that the student has seen this upload's report (false for a look ahead).
      * @return array|null
      */
-    public static function report(\cm_info $cm, int $userid): ?array {
+    public static function report(\cm_info $cm, int $userid, bool $markseen = true): ?array {
         global $DB;
         $assign = self::load($cm);
         if (!self::is_active($cm, $assign) || !has_capability('mod/assign:submit', $cm->context, $userid)) {
@@ -186,7 +220,7 @@ class assign {
             );
         }
 
-        $replace = self::replace_state($assign, $userid);
+        $replace = self::replace_state($assign, $userid, count($files) > 1);
         $data = [
             'uniqid' => \html_writer::random_id('local-submissioncheck-'),
             'cmid' => $cm->id,
@@ -200,8 +234,11 @@ class assign {
                 'time' => $uploadtime,
                 'deadline' => report_builder::time(confirmation::deadline($record)),
             ]),
-            'statusmessage' => $awaiting ? '' : self::status_message($record, $userid, $isgroup),
-            'latemessage' => $replace['late'] ? get_string('replacelate', 'local_submissioncheck') : '',
+            'statusmessage' => $awaiting ? '' : self::status_message($record, $userid, $isgroup, $plural),
+            'latemessage' => $replace['late'] ? get_string('replacelate_' . $plural, 'local_submissioncheck') : '',
+            'multiple' => count($files) > 1,
+            'confirmby' => get_string('confirmby', 'local_submissioncheck', report_builder::time(confirmation::deadline($record))),
+            'reviewurl' => self::review_url($cm->id)->out(false),
             'disclaimer' => report_builder::disclaimer($course, $cm),
             'files' => $built['files'],
             'pending' => $built['pending'],
@@ -215,7 +252,9 @@ class assign {
                 'backreason' => $replace['reason'],
             ] : null,
         ];
-        self::mark_seen($record, $userid);
+        if ($markseen) {
+            self::mark_seen($record, $userid);
+        }
         return $data;
     }
 
@@ -224,9 +263,10 @@ class assign {
      *
      * @param \assign $assign
      * @param int $userid
+     * @param bool $plural The reason talks about several files.
      * @return array ['can' => bool, 'late' => bool, 'reason' => string]
      */
-    public static function replace_state(\assign $assign, int $userid): array {
+    public static function replace_state(\assign $assign, int $userid, bool $plural = false): array {
         $instance = $assign->get_instance($userid);
         $flags = $assign->get_user_flags($userid, false);
         $due = (int) $instance->duedate;
@@ -242,7 +282,10 @@ class assign {
         return [
             'can' => false,
             'late' => false,
-            'reason' => get_string($pastcutoff ? 'cannotreplace_cutoff' : 'cannotreplace', 'local_submissioncheck'),
+            'reason' => get_string(
+                ($pastcutoff ? 'cannotreplace_cutoff' : 'cannotreplace') . ($plural ? '_plural' : ''),
+                'local_submissioncheck'
+            ),
         ];
     }
 
@@ -252,9 +295,10 @@ class assign {
      * @param \stdClass $record
      * @param int $userid The viewer.
      * @param bool $isgroup
+     * @param string $plural 'single' or 'plural'.
      * @return string
      */
-    protected static function status_message(\stdClass $record, int $userid, bool $isgroup): string {
+    protected static function status_message(\stdClass $record, int $userid, bool $isgroup, string $plural = 'single'): string {
         global $DB;
         if ((int) $record->state === confirmation::AUTOACCEPTED) {
             return get_string(
@@ -263,7 +307,7 @@ class assign {
                 confirmation::window() / MINSECS
             );
         }
-        $suffix = $record->acknowledged ? '_ack' : '';
+        $suffix = ($record->acknowledged ? '_ack' : '') . ($plural === 'plural' ? '_plural' : '');
         if (!$isgroup && (int) $record->resolvedby === $userid) {
             return get_string('confirmed_you' . $suffix, 'local_submissioncheck');
         }
@@ -319,6 +363,16 @@ class assign {
      */
     public static function edit_url(int $cmid): \moodle_url {
         return new \moodle_url('/mod/assign/view.php', ['id' => $cmid, 'action' => 'editsubmission']);
+    }
+
+    /**
+     * The review page for the student's current upload.
+     *
+     * @param int $cmid
+     * @return \moodle_url
+     */
+    public static function review_url(int $cmid): \moodle_url {
+        return new \moodle_url('/local/submissioncheck/review.php', ['id' => $cmid]);
     }
 
     /**

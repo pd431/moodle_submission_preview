@@ -93,8 +93,11 @@ class file_facts {
             case 'image':
                 $info = @getimagesize($file->get_path());
                 if ($info) {
-                    $facts[] = self::fact('factdimensions', get_string('factpixels', 'local_submissioncheck',
-                        (object) ['width' => $info[0], 'height' => $info[1]]));
+                    $facts[] = self::fact('factdimensions', get_string(
+                        'factpixels',
+                        'local_submissioncheck',
+                        (object) ['width' => $info[0], 'height' => $info[1]]
+                    ));
                 }
                 break;
             case 'text':
@@ -244,8 +247,11 @@ class file_facts {
             }, $names);
             $shown = implode(', ', array_slice($names, 0, self::MAX_SHEET_NAMES));
             if (count($names) > self::MAX_SHEET_NAMES) {
-                $shown = get_string('factandmore', 'local_submissioncheck',
-                    (object) ['list' => $shown, 'more' => count($names) - self::MAX_SHEET_NAMES]);
+                $shown = get_string(
+                    'factandmore',
+                    'local_submissioncheck',
+                    (object) ['list' => $shown, 'more' => count($names) - self::MAX_SHEET_NAMES]
+                );
             }
             $facts[] = self::fact('factsheets', $shown);
         }

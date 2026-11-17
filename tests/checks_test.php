@@ -259,11 +259,15 @@ final class checks_test extends \advanced_testcase {
             '<office:presentation><draw:page/><draw:page><draw:frame><draw:image xlink:href="../clip.mp4"/></draw:frame>' .
             '</draw:page></office:presentation></office:body></office:document-content>';
         $path = $this->package(['mimetype' => 'application/vnd.oasis.opendocument.presentation', 'content.xml' => $content]);
-        $this->assertSame([['name' => 'clip.mp4', 'slide' => 2]],
-            local\checks\linked_media::locate(new inspected_file($path, 'talk.odp')));
+        $this->assertSame(
+            [['name' => 'clip.mp4', 'slide' => 2]],
+            local\checks\linked_media::locate(new inspected_file($path, 'talk.odp'))
+        );
 
         $path = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/linked-image.docx';
-        $this->assertSame([['name' => 'graph1.png', 'slide' => null]],
-            local\checks\linked_media::locate(new inspected_file($path, 'linked-image.docx')));
+        $this->assertSame(
+            [['name' => 'graph1.png', 'slide' => null]],
+            local\checks\linked_media::locate(new inspected_file($path, 'linked-image.docx'))
+        );
     }
 }

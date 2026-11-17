@@ -159,7 +159,10 @@ final class assign_test extends \advanced_testcase {
         $this->assertTrue($report['awaiting']);
         $this->assertStringContainsString('You submitted this file at', $report['submitted']);
         $this->assertStringContainsString('You have 15 minutes to confirm this is the file', $report['windowmessage']);
-        $this->assertSame(['graph1.png (slide 1)', 'interview.mp4 (slide 1)'], array_column($report['files'][0]['findings'][0]['items'], 'name'));
+        $this->assertSame(
+            ['graph1.png (slide 1)', 'interview.mp4 (slide 1)'],
+            array_column($report['files'][0]['findings'][0]['items'], 'name')
+        );
         $this->assertTrue($report['files'][0]['previewready']);
         $this->assertStringContainsString('submit to RS101 Essay 1', $report['disclaimer']);
         $this->assertFalse($report['continuing']);
@@ -307,5 +310,48 @@ final class assign_test extends \advanced_testcase {
         }
         $this->assertFalse($DB->record_exists('local_submissioncheck_upload', ['cmid' => $cm->id]));
         $this->assertFalse($DB->record_exists('local_submissioncheck_cfg', ['cmid' => $cm->id]));
+    }
+
+    /**
+     * The review page: a tab per file with its warning count, plural wording for several files, the confirm-by time
+     * and the viewed count.
+     */
+    public function test_review_page(): void {
+        $cm = $this->make_assign();
+        $this->submit($cm, $this->student, ['essay.docx', 'linked-media.pptx']);
+        $data = \local_submissioncheck\output\review_page::data($cm, (int) $this->student->id);
+        $this->assertTrue($data['multiple']);
+        $files = array_column($data['files'], null, 'name');
+        $this->assertSame('No problems found', $files['essay.docx']['tabstatus']);
+        $this->assertSame('1 warning', $files['linked-media.pptx']['tabstatus']);
+        $this->assertTrue($data['files'][0]['first']);
+        $this->assertSame('Viewed 1 of 2 files', $data['viewed']);
+        $this->assertSame('Yes, these are the files I intended to submit', $data['actions']['confirmlabel']);
+        $this->assertStringStartsWith('Confirm by ', $data['confirmby']);
+        $this->assertStringContainsString('You submitted these files at', $data['submitted']);
+        $this->assertNotEmpty($files['essay.docx']['facts']);
+    }
+
+    /**
+     * Saving files sends the student to the review page once, for that upload only.
+     */
+    public function test_review_flag(): void {
+        $cm = $this->make_assign();
+        $this->submit($cm, $this->student, ['essay.docx']);
+        $this->assertTrue(assign_adapter::take_review_flag($cm, (int) $this->student->id));
+        $this->assertFalse(assign_adapter::take_review_flag($cm, (int) $this->student->id));
+    }
+
+    /**
+     * After answering, wording follows the number of files.
+     */
+    public function test_plural_outcome(): void {
+        $cm = $this->make_assign();
+        $this->submit($cm, $this->student, ['essay.docx', 'marks.xlsx']);
+        $record = $this->current($cm, $this->student);
+        \local_submissioncheck\local\confirmation::confirm($record, (int) $this->student->id);
+        $data = assign_adapter::report($cm, (int) $this->student->id);
+        $this->assertSame('You confirmed these files.', $data['statusmessage']);
+        $this->assertNull($data['actions']);
     }
 }

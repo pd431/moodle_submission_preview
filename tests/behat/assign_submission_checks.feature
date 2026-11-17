@@ -32,6 +32,8 @@ Feature: Students check a preview of their assignment file straight after submit
     And I should see "No problems found in essay.docx"
     And I should see "This is an approximate preview of your document(s). Layout may be approximate. Use it to check this is what you intended to submit to RS101 Essay 1, and that it has all the content you expect, and the latest changes you made to it."
     And "Preview of essay.docx" "local_submissioncheck > Preview" should exist
+    And I should see "Confirm by"
+    And I should see "About this file"
     And "Yes, this is the file I intended to submit" "button" should exist
     And "No, wrong file: take me back" "button" should exist
 
@@ -87,6 +89,7 @@ Feature: Students check a preview of their assignment file straight after submit
     When I press "Cancel"
     Then I should see "Submitted for grading"
     And I should see "essay.docx"
+    And I click on "Continue checking your submission" "link"
     And "Yes, this is the file I intended to submit" "button" should exist
 
   Scenario: After 15 minutes the submission is accepted automatically, with warnings not acknowledged
@@ -128,6 +131,7 @@ Feature: Students check a preview of their assignment file straight after submit
       | assign | Essay 2 | RS101 | 1 | 1 | 1048576 | 0 | on | ##-5 minutes## |
     And the submission check upload for "student1" in "Essay 2" of "local/submissioncheck/tests/fixtures/essay.docx" was made at "##-10 minutes##"
     When I am on the "Essay 2" "assign activity" page logged in as "student1"
+    And I click on "Continue checking your submission" "link"
     And I press "Yes, this is the file I intended to submit"
     Then I should see "Submitted for grading"
     And I should not see "submitted late"
@@ -138,6 +142,7 @@ Feature: Students check a preview of their assignment file straight after submit
       | assign | Essay 3 | RS101 | 1 | 1 | 1048576 | 0 | on | ##-5 minutes## |
     And the submission check upload for "student1" in "Essay 3" of "local/submissioncheck/tests/fixtures/essay.docx" was made at "##-10 minutes##"
     When I am on the "Essay 3" "assign activity" page logged in as "student1"
+    And I click on "Continue checking your submission" "link"
     Then I should see "The due date has passed. If you replace this file, the new file will be recorded as late."
 
   Scenario: After the cut-off date, the file can no longer be replaced and the report says so
@@ -146,6 +151,7 @@ Feature: Students check a preview of their assignment file straight after submit
       | assign | Essay 4 | RS101 | 1 | 1 | 1048576 | 0 | on | ##-10 minutes## | ##-2 minutes## |
     And the submission check upload for "student1" in "Essay 4" of "local/submissioncheck/tests/fixtures/essay.docx" was made at "##-12 minutes##"
     When I am on the "Essay 4" "assign activity" page logged in as "student1"
+    And I click on "Continue checking your submission" "link"
     Then the "No, wrong file: take me back" "button" should be disabled
     And I should see "You can't replace this file because the cut-off date has passed. Contact your module team if it is the wrong file."
     And "Yes, this is the file I intended to submit" "button" should exist
@@ -173,8 +179,9 @@ Feature: Students check a preview of their assignment file straight after submit
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to "File submissions" filemanager
     When I press "Save changes"
     Then I should see "No problems found in essay.docx"
-    And I should see "interview.mp4"
     And "Preview of essay.docx" "local_submissioncheck > Preview" should exist
+    And I click on "linked-media.pptx" "local_submissioncheck > File tab"
+    And I should see "interview.mp4"
     And "Preview of linked-media.pptx" "local_submissioncheck > Preview" should exist
 
   Scenario: A student who navigates away is brought back to the report
@@ -185,6 +192,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I am on "Research skills" course homepage
     When I am on the "Essay 1" "assign activity" page
     Then I should see "Continue checking your submission"
+    And I click on "Continue checking your submission" "link"
     And I should see "interview.mp4"
     And "Preview of linked-media.pptx" "local_submissioncheck > Preview" should exist
 
@@ -238,6 +246,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to "File submissions" filemanager
     And I press "Save changes"
     When I am on the "Group 1" "assign activity" page logged in as "student2"
+    And I click on "Continue checking your submission" "link"
     Then I should see "interview.mp4"
     And I press "Yes, this is the file I intended to submit"
     And I should see "Ali Student confirmed this file and read the warnings about it"

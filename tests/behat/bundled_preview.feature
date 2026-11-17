@@ -47,4 +47,5 @@ Feature: Students get a preview of their file even when the site has no document
     When I press "Save changes"
     Then the Word preview of "essay.docx" should show "Feedback helps students"
     And "Preview of marks.xlsx" "local_submissioncheck > Preview" should exist
+    And I click on "essay.rtf" "local_submissioncheck > File tab"
     And I should see "A preview isn't available right now. Your file has been submitted." in the "Preview of essay.rtf" "local_submissioncheck > Preview"
