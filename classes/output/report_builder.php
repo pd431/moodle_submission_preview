@@ -16,6 +16,7 @@
 
 namespace local_submissioncheck\output;
 
+use local_submissioncheck\local\file_facts;
 use local_submissioncheck\local\file_result;
 use local_submissioncheck\local\preview;
 use local_submissioncheck\local\result_store;
@@ -84,6 +85,8 @@ class report_builder {
         return [
             'name' => $name,
             'checkslabel' => get_string('checksfor', 'local_submissioncheck', $name),
+            'factslabel' => get_string('factabout', 'local_submissioncheck', $name),
+            'facts' => file_facts::get($file),
             'previewlabel' => get_string('previewof', 'local_submissioncheck', $name),
             'ok' => !$result->has_warnings() && !$result->is_unavailable(),
             'okmessage' => get_string('noproblems', 'local_submissioncheck', $name),

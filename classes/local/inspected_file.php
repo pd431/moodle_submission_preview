@@ -164,6 +164,15 @@ class inspected_file {
     }
 
     /**
+     * Local path to the content.
+     *
+     * @return string
+     */
+    public function get_path(): string {
+        return $this->path;
+    }
+
+    /**
      * Size in bytes.
      *
      * @return int
