@@ -24,6 +24,8 @@
  */
 
 import Pending from 'core/pending';
+import Templates from 'core/templates';
+import {getString} from 'core/str';
 
 /** Options for the renderer: whole pages, pictures inline, no comments or experimental layout. */
 const OPTIONS = {
@@ -33,6 +35,39 @@ const OPTIONS = {
     useBase64URL: true,
     renderComments: false,
     experimental: false,
+};
+
+/** Marker the server puts where a linked item was (classes/local/word_markers.php). */
+const MARKER = /\[\[submissioncheck-missing\|([^|\]]*)\|(\d+)\|(\d+)\]\]/;
+
+/**
+ * Replace each marker in a drawn document with the missing-item box, at the size of the original frame when known.
+ *
+ * @param {Document} doc The frame's document.
+ * @returns {Promise}
+ */
+const markMissing = async(doc) => {
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    const found = [];
+    while (walker.nextNode()) {
+        const match = walker.currentNode.data.match(MARKER);
+        if (match) {
+            found.push({node: walker.currentNode, name: match[1], width: parseInt(match[2], 10),
+                height: parseInt(match[3], 10)});
+        }
+    }
+    for (const item of found) {
+        const message = await getString('missingitem', 'local_submissioncheck', item.name);
+        const {html} = await Templates.renderForPromise('local_submissioncheck/missing_item', {
+            message: message,
+            width: item.width ? item.width + 'px' : null,
+            height: item.height ? item.height + 'px' : null,
+        });
+        const box = doc.createRange().createContextualFragment(html);
+        const holder = item.node.parentElement && item.node.parentElement.tagName === 'SPAN'
+            ? item.node.parentElement : item.node;
+        holder.replaceWith(box);
+    }
 };
 
 /**
@@ -84,6 +119,7 @@ const renderOne = async(region) => {
         region.replaceChildren(frame);
         const doc = frame.contentDocument;
         await renderer.renderAsync(data, doc.body, doc.head, OPTIONS);
+        await markMissing(doc);
         doc.querySelectorAll('a[href]').forEach((link) => {
             if (!link.getAttribute('href').startsWith('#')) {
                 link.removeAttribute('href');

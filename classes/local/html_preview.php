@@ -16,6 +16,7 @@
 
 namespace local_submissioncheck\local;
 
+use local_submissioncheck\local\checks\linked_media;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
@@ -247,11 +248,20 @@ class html_preview {
      * @return string|null
      */
     protected static function outline(\stored_file $file): ?string {
+        global $OUTPUT;
         $inspected = inspected_file::from_stored_file($file);
         $sections = package_text::sections($inspected, self::MAX_SECTIONS);
         if ($sections === null) {
             return null;
         }
+        $missing = [];
+        foreach (linked_media::locate($inspected) as $item) {
+            $missing[$item['slide'] ?? 0][] = $item['name'];
+        }
+        $box = function (string $name) use ($OUTPUT): string {
+            return $OUTPUT->render_from_template('local_submissioncheck/missing_item',
+                ['message' => get_string('missingitem', 'local_submissioncheck', $name)]);
+        };
         $html = '';
         foreach ($sections as $section) {
             if ($section['slide'] !== null) {
@@ -260,8 +270,11 @@ class html_preview {
             foreach ($section['paragraphs'] as $paragraph) {
                 $html .= '<p>' . nl2br(s($paragraph)) . '</p>';
             }
-            if (!$section['paragraphs']) {
+            if (!$section['paragraphs'] && empty($missing[$section['slide'] ?? 0])) {
                 $html .= '<p class="note">' . s(get_string('previewnotext', 'local_submissioncheck')) . '</p>';
+            }
+            foreach ($missing[$section['slide'] ?? 0] ?? [] as $name) {
+                $html .= $box($name);
             }
         }
         return self::page($file->get_filename(), $html);

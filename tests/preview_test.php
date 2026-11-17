@@ -20,6 +20,7 @@ use local_submissioncheck\local\html_preview;
 use local_submissioncheck\local\inspected_file;
 use local_submissioncheck\local\preview;
 use local_submissioncheck\local\testing;
+use local_submissioncheck\local\word_markers;
 
 /**
  * Which preview a file gets, and the previews made on the server.
@@ -31,10 +32,12 @@ use local_submissioncheck\local\testing;
  * @covers     \local_submissioncheck\local\preview
  * @covers     \local_submissioncheck\local\html_preview
  * @covers     \local_submissioncheck\local\inspected_file
+ * @covers     \local_submissioncheck\local\word_markers
  */
 #[\PHPUnit\Framework\Attributes\CoversClass(local\preview::class)]
 #[\PHPUnit\Framework\Attributes\CoversClass(local\html_preview::class)]
 #[\PHPUnit\Framework\Attributes\CoversClass(local\inspected_file::class)]
+#[\PHPUnit\Framework\Attributes\CoversClass(local\word_markers::class)]
 final class preview_test extends \advanced_testcase {
     /** @var int Item id of the next stored file. */
     protected $itemid = 0;
@@ -183,5 +186,37 @@ final class preview_test extends \advanced_testcase {
 
         $this->assertSame('<p>Hi</p>', html_preview::render($this->store('page.html', '<p>Hi</p>')));
         $this->assertNull(html_preview::render($this->store('damaged.pptx', 'not a package')));
+    }
+
+    /**
+     * A linked picture in a Word document becomes a marker at its place, with its size in pixels; a document without
+     * linked items is sent as it is.
+     */
+    public function test_word_markers(): void {
+        $path = word_markers::prepare($this->fixture('linked-image.docx'));
+        $this->assertNotNull($path);
+        $zip = new \ZipArchive();
+        $zip->open($path);
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        unlink($path);
+        $this->assertStringContainsString('[[submissioncheck-missing|graph1.png|320|180]]', $xml);
+        $this->assertStringNotContainsString('r:link=', $xml);
+        $this->assertStringContainsString('Respondents rated timely feedback highest.', $xml);
+
+        $this->assertNull(word_markers::prepare($this->fixture('essay.docx')));
+    }
+
+    /**
+     * A presentation's linked items are drawn as missing under their slide.
+     */
+    public function test_outline_marks_missing_items(): void {
+        $html = html_preview::render($this->fixture('linked-media.pptx'));
+        $slide = strpos($html, '<h2>Slide 1</h2>');
+        $box = strpos($html, 'interview.mp4 is not included in this document. A marker will not see it.');
+        $this->assertNotFalse($box);
+        $this->assertGreaterThan($slide, $box);
+        $this->assertStringContainsString('graph1.png is not included in this document. A marker will not see it.', $html);
+        $this->assertStringContainsString('data-region="local-submissioncheck-missing"', $html);
     }
 }

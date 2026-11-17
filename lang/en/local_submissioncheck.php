@@ -132,6 +132,7 @@ $string['kind_text'] = 'plain text';
 $string['kind_word'] = 'a Word document';
 $string['kind_zip'] = 'a zip file';
 $string['messageprovider:unconfirmed'] = 'Reminder to check a submitted file';
+$string['missingitem'] = '{$a} is not included in this document. A marker will not see it.';
 $string['mode'] = 'Submission checks';
 $string['mode_auto'] = 'Automatic';
 $string['mode_help'] = 'After a student submits files, show them a report of checks on the files and a preview, and give them time to confirm or replace the file. Automatic turns checks on when the activity has one of the tags set by the site administrator.';
