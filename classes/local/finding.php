@@ -75,7 +75,21 @@ class finding {
         if ($this->code === 'linkedmedia') {
             $params['link'] = (string) get_config('local_submissioncheck', 'helplink');
         }
-        return get_string('finding_' . $this->code, 'local_submissioncheck', (object) $params);
+        return get_string('finding_' . $this->code, 'local_submissioncheck', (object) array_filter($params, 'is_scalar'));
+    }
+
+    /**
+     * The listed items as shown to the student, with the slide each is on when the check found it.
+     *
+     * @return string[]
+     */
+    public function item_labels(): array {
+        $slides = (array) ($this->params['slides'] ?? []);
+        return array_map(function ($item) use ($slides) {
+            return isset($slides[$item])
+                ? get_string('itemonslide', 'local_submissioncheck', (object) ['name' => $item, 'slide' => $slides[$item]])
+                : $item;
+        }, $this->items);
     }
 
     /**

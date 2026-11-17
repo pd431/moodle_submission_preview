@@ -79,6 +79,7 @@ $string['googlesheet'] = 'Google Sheet';
 $string['googleslides'] = 'Google Slides presentation';
 $string['helplink'] = 'Help link for linked media';
 $string['helplink_desc'] = 'Shown to students whose file links to media instead of embedding it.';
+$string['itemonslide'] = '{$a->name} (slide {$a->slide})';
 $string['kind_excel'] = 'an Excel spreadsheet';
 $string['kind_html'] = 'a web page (HTML)';
 $string['kind_image'] = 'an image';

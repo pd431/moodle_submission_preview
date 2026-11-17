@@ -159,7 +159,7 @@ final class assign_test extends \advanced_testcase {
         $this->assertTrue($report['awaiting']);
         $this->assertStringContainsString('You submitted this file at', $report['submitted']);
         $this->assertStringContainsString('You have 15 minutes to confirm this is the file', $report['windowmessage']);
-        $this->assertSame(['graph1.png', 'interview.mp4'], array_column($report['files'][0]['findings'][0]['items'], 'name'));
+        $this->assertSame(['graph1.png (slide 1)', 'interview.mp4 (slide 1)'], array_column($report['files'][0]['findings'][0]['items'], 'name'));
         $this->assertTrue($report['files'][0]['previewready']);
         $this->assertStringContainsString('submit to RS101 Essay 1', $report['disclaimer']);
         $this->assertFalse($report['continuing']);

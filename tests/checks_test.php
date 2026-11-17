@@ -242,4 +242,28 @@ final class checks_test extends \advanced_testcase {
             $this->assertStringNotContainsString('root:', $item);
         }
     }
+
+    /**
+     * Linked items carry the slide they are on, shown next to the name; the message is unchanged.
+     */
+    public function test_linked_media_slides(): void {
+        global $CFG;
+        $path = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/linked-media.pptx';
+        $findings = (new local\checks\linked_media())->run(new inspected_file($path, 'linked-media.pptx'));
+        $this->assertCount(1, $findings);
+        $this->assertSame(['graph1.png' => 1, 'interview.mp4' => 1], $findings[0]->params['slides']);
+        $this->assertSame(['graph1.png (slide 1)', 'interview.mp4 (slide 1)'], $findings[0]->item_labels());
+        $this->assertStringStartsWith('The following files have been linked', $findings[0]->get_message());
+
+        $content = '<office:document-content xmlns:office="o" xmlns:draw="d" xmlns:xlink="x"><office:body>' .
+            '<office:presentation><draw:page/><draw:page><draw:frame><draw:image xlink:href="../clip.mp4"/></draw:frame>' .
+            '</draw:page></office:presentation></office:body></office:document-content>';
+        $path = $this->package(['mimetype' => 'application/vnd.oasis.opendocument.presentation', 'content.xml' => $content]);
+        $this->assertSame([['name' => 'clip.mp4', 'slide' => 2]],
+            local\checks\linked_media::locate(new inspected_file($path, 'talk.odp')));
+
+        $path = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/linked-image.docx';
+        $this->assertSame([['name' => 'graph1.png', 'slide' => null]],
+            local\checks\linked_media::locate(new inspected_file($path, 'linked-image.docx')));
+    }
 }

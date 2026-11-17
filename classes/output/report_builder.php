@@ -74,9 +74,9 @@ class report_builder {
         foreach ($result->findings as $finding) {
             $findings[] = [
                 'message' => $finding->get_message(),
-                'items' => array_map(function ($item) {
-                    return ['name' => $item];
-                }, $finding->items),
+                'items' => array_map(function ($label) {
+                    return ['name' => $label];
+                }, $finding->item_labels()),
                 'hasitems' => !empty($finding->items),
             ];
         }
