@@ -1,0 +1,45 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_submissioncheck/quiz_summary
+
+    Checks and previews for every attachment on the quiz summary page, with the acknowledgement.
+
+    Example context (json):
+    {
+        "uniqid": "local-submissioncheck-2", "needsack": true, "nearend": false, "acknowledged": false,
+        "acklabel": "I have read these warnings and still want to submit these files",
+        "ackrequired": "Please read the warnings about your files and tick the box to confirm before finishing.",
+        "nearendmessage": "The time limit is close, so you can finish without confirming.",
+        "disclaimer": "This is an approximate preview of your document(s).", "files": []
+    }
+}}
+<section class="local-submissioncheck local-submissioncheck-quizsummary card mb-3" aria-labelledby="{{uniqid}}-heading"
+         {{#pending}}data-pending="1"{{/pending}}>
+    <div class="card-body">
+        <h3 id="{{uniqid}}-heading" class="h4 card-title">{{#str}}quizsummaryheading, local_submissioncheck{{/str}}</h3>
+        {{> local_submissioncheck/files }}
+        {{#nearend}}<p class="alert alert-info">{{nearendmessage}}</p>{{/nearend}}
+        {{#needsack}}
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="{{uniqid}}-ack" data-region="local-submissioncheck-ack">
+            <label class="form-check-label" for="{{uniqid}}-ack">{{acklabel}}</label>
+        </div>
+        <p class="alert alert-danger d-none" role="alert" data-region="local-submissioncheck-ackrequired">{{ackrequired}}</p>
+        {{/needsack}}
+    </div>
+</section>
