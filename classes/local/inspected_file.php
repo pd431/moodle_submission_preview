@@ -258,11 +258,39 @@ class inspected_file {
             return self::TYPE_EMPTY;
         }
         $head = $this->head(2048);
+        $type = self::type_from_head($head);
+        if ($type === self::TYPE_ZIP) {
+            return $this->detect_package_type();
+        }
+        if ($type !== self::TYPE_UNKNOWN) {
+            return $type;
+        }
+        $text = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $head));
+        if (
+            $this->size < 4096 && strpos($text, '{') === 0 && preg_match('/"(doc_id|resource_id)"\s*:/', $text)
+                && preg_match('/google\.com/', $text)
+        ) {
+            return self::TYPE_GOOGLE;
+        }
+        if (preg_match('//u', substr($head, 0, 1500)) && !preg_match('/[\x00-\x08\x0E-\x1F]/', $head)) {
+            return self::TYPE_TEXT;
+        }
+        return self::TYPE_UNKNOWN;
+    }
+
+    /**
+     * What the first bytes of a file say it is. A zip package comes back as TYPE_ZIP; telling apart its kinds needs
+     * its entries. Text that isn't one of the marked kinds comes back as TYPE_UNKNOWN.
+     *
+     * @param string $head The first bytes of the file (up to 2048 are used).
+     * @return string One of the TYPE_ constants.
+     */
+    public static function type_from_head(string $head): string {
         if (strpos(substr($head, 0, 1024), '%PDF-') !== false) {
             return self::TYPE_PDF;
         }
         if (strncmp($head, "PK\x03\x04", 4) === 0 || strncmp($head, "PK\x05\x06", 4) === 0) {
-            return $this->detect_package_type();
+            return self::TYPE_ZIP;
         }
         if (strncmp($head, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 8) === 0) {
             return self::TYPE_OLE;
@@ -289,15 +317,6 @@ class inspected_file {
         $lower = \core_text::strtolower(substr($text, 0, 1024));
         if (strpos($lower, '<!doctype html') === 0 || strpos($lower, '<html') !== false) {
             return self::TYPE_HTML;
-        }
-        if (
-            $this->size < 4096 && strpos($text, '{') === 0 && preg_match('/"(doc_id|resource_id)"\s*:/', $text)
-                && preg_match('/google\.com/', $text)
-        ) {
-            return self::TYPE_GOOGLE;
-        }
-        if (preg_match('//u', substr($head, 0, 1500)) && !preg_match('/[\x00-\x08\x0E-\x1F]/', $head)) {
-            return self::TYPE_TEXT;
         }
         return self::TYPE_UNKNOWN;
     }

@@ -154,21 +154,11 @@ class preview {
         $key = $file->get_contenthash() . '/' . $file->get_filename();
         if (!isset($cache[$key])) {
             $handle = $file->get_content_file_handle();
-            $head = $handle ? (string) fread($handle, 16) : '';
+            $head = $handle ? (string) fread($handle, 2048) : '';
             if ($handle) {
                 fclose($handle);
             }
-            if (strncmp($head, '%PDF-', 5) === 0) {
-                $cache[$key] = inspected_file::TYPE_PDF;
-            } else if (strncmp($head, "\xFF\xD8\xFF", 3) === 0) {
-                $cache[$key] = inspected_file::TYPE_JPEG;
-            } else if (strncmp($head, "\x89PNG\r\n\x1A\n", 8) === 0) {
-                $cache[$key] = inspected_file::TYPE_PNG;
-            } else if (strncmp($head, 'GIF8', 4) === 0) {
-                $cache[$key] = inspected_file::TYPE_GIF;
-            } else {
-                $cache[$key] = inspected_file::TYPE_UNKNOWN;
-            }
+            $cache[$key] = inspected_file::type_from_head($head);
         }
         return $cache[$key];
     }
