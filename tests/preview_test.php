@@ -84,6 +84,10 @@ final class preview_test extends \advanced_testcase {
         $this->assertSame(inspected_file::TYPE_OGG, inspected_file::type_from_head('OggS' . "\x00\x02"));
         $this->assertSame(inspected_file::TYPE_MP3, inspected_file::type_from_head("ID3\x04\x00\x00"));
         $this->assertSame(inspected_file::TYPE_MP3, inspected_file::type_from_head("\xFF\xFB\x90\x00"));
+        $this->assertSame(inspected_file::TYPE_MP3, inspected_file::type_from_head("\xFF\xF3\x90\x00"));
+        // A UTF-16 text marker, or a Layer I header, is not an MP3.
+        $this->assertSame(inspected_file::TYPE_UNKNOWN, inspected_file::type_from_head("\xFF\xFEPK\x03\x04"));
+        $this->assertSame(inspected_file::TYPE_UNKNOWN, inspected_file::type_from_head("\xFF\xFF\x90\x00"));
         $this->assertSame(inspected_file::TYPE_UNKNOWN, inspected_file::type_from_head('ID3 notes for the essay'));
         $this->assertSame(inspected_file::TYPE_ZIP, inspected_file::type_from_head("PK\x03\x04rest"));
     }

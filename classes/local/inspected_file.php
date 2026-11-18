@@ -368,7 +368,10 @@ class inspected_file {
         if (strncmp($head, 'OggS', 4) === 0) {
             return self::TYPE_OGG;
         }
-        $framesync = strlen($head) > 1 && $head[0] === "\xFF" && (ord($head[1]) & 0xE0) === 0xE0;
+        // An MPEG audio Layer III frame: 11 sync bits, a version that is not reserved (bits 4-3 not 01), layer III
+        // (bits 2-1 = 01). Looser tests take other binary data (such as a UTF-16 text marker, FF FE) for sound.
+        $framesync = strlen($head) > 1 && $head[0] === "\xFF" && (ord($head[1]) & 0xE0) === 0xE0
+            && (ord($head[1]) & 0x18) !== 0x08 && (ord($head[1]) & 0x06) === 0x02;
         if ($framesync || preg_match('/^ID3[\x02-\x04]\x00/', $head)) {
             return self::TYPE_MP3;
         }
