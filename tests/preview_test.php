@@ -20,7 +20,7 @@ use local_submissioncheck\local\html_preview;
 use local_submissioncheck\local\inspected_file;
 use local_submissioncheck\local\preview;
 use local_submissioncheck\local\testing;
-use local_submissioncheck\local\word_markers;
+use local_submissioncheck\local\word_copy;
 
 /**
  * Which preview a file gets, and the previews made on the server.
@@ -32,12 +32,12 @@ use local_submissioncheck\local\word_markers;
  * @covers     \local_submissioncheck\local\preview
  * @covers     \local_submissioncheck\local\html_preview
  * @covers     \local_submissioncheck\local\inspected_file
- * @covers     \local_submissioncheck\local\word_markers
+ * @covers     \local_submissioncheck\local\word_copy
  */
 #[\PHPUnit\Framework\Attributes\CoversClass(local\preview::class)]
 #[\PHPUnit\Framework\Attributes\CoversClass(local\html_preview::class)]
 #[\PHPUnit\Framework\Attributes\CoversClass(local\inspected_file::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\word_markers::class)]
+#[\PHPUnit\Framework\Attributes\CoversClass(local\word_copy::class)]
 final class preview_test extends \advanced_testcase {
     /** @var int Item id of the next stored file. */
     protected $itemid = 0;
@@ -192,8 +192,8 @@ final class preview_test extends \advanced_testcase {
      * A linked picture in a Word document becomes a marker at its place, with its size in pixels; a document without
      * linked items is sent as it is.
      */
-    public function test_word_markers(): void {
-        $path = word_markers::prepare($this->fixture('linked-image.docx'));
+    public function test_word_copy(): void {
+        $path = word_copy::prepare($this->fixture('linked-image.docx'));
         $this->assertNotNull($path);
         $zip = new \ZipArchive();
         $zip->open($path);
@@ -204,7 +204,7 @@ final class preview_test extends \advanced_testcase {
         $this->assertStringNotContainsString('r:link=', $xml);
         $this->assertStringContainsString('Respondents rated timely feedback highest.', $xml);
 
-        $this->assertNull(word_markers::prepare($this->fixture('essay.docx')));
+        $this->assertNull(word_copy::prepare($this->fixture('essay.docx')));
     }
 
     /**

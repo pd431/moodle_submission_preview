@@ -29,7 +29,7 @@ use local_submissioncheck\local\adapter\assign as assign_adapter;
 use local_submissioncheck\local\adapter\quiz as quiz_adapter;
 use local_submissioncheck\local\html_preview;
 use local_submissioncheck\local\preview;
-use local_submissioncheck\local\word_markers;
+use local_submissioncheck\local\word_copy;
 
 $fileid = required_param('fileid', PARAM_INT);
 $uploadid = optional_param('uploadid', 0, PARAM_INT);
@@ -89,7 +89,7 @@ if (preview::get_status($file, false)['kind'] === preview::KIND_HTML) {
 }
 
 \core\session\manager::write_close();
-if (preview::get_status($file, false)['kind'] === preview::KIND_DOCX && ($prepared = word_markers::prepare($file))) {
+if (preview::get_status($file, false)['kind'] === preview::KIND_DOCX && ($prepared = word_copy::prepare($file))) {
     // Linked items marked for the browser to draw as missing.
     send_file($prepared, $file->get_filename(), 0, 0, false, false, $file->get_mimetype(), false, ['dontdie' => true]);
     @unlink($prepared);

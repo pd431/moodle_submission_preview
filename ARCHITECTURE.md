@@ -21,7 +21,7 @@ One owner per concern. Change a rule in its owner; callers pass flags or data an
 | The review page for an assignment upload (tabs, side panel, fixed answer bar) | `review.php`, `classes/output/review_page.php`, `templates/review.mustache` | `tests/behat/review_flow.feature` |
 | When the assignment page sends the student to the review page, and the banner it keeps | `classes/hook_callbacks.php`, `classes/local/adapter/assign.php` (session flag) | `tests/assign_test.php` |
 | Tabs, viewed count, keeping focus clear of the fixed bar | `amd/src/review.js` | `tests/behat/review_flow.feature` |
-| Marking linked items in a Word document for the browser | `classes/local/word_markers.php` | `tests/preview_test.php` |
+| The temporary copy of a Word document the browser draws (linked items marked) | `classes/local/word_copy.php` | `tests/preview_test.php` |
 | The missing-item box (one template for the browser and the server) | `templates/missing_item.mustache` | `tests/preview_test.php`, `tests/behat/review_flow.feature` |
 | Per-file report parts shared by the review page and the quiz | `templates/file_checks.mustache`, `templates/file_facts.mustache`, `templates/file_preview.mustache` | `tests/behat/quiz_essay_attachment_checks.feature` |
 | Confirmation window: who submitted what, and the answer (answers post to `confirm.php`, which returns to the assignment page) | `classes/local/confirmation.php`, `confirm.php` | `tests/assign_test.php` |

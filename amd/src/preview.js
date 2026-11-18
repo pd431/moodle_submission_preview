@@ -37,7 +37,7 @@ const OPTIONS = {
     experimental: false,
 };
 
-/** Marker the server puts where a linked item was (classes/local/word_markers.php). */
+/** Marker the server puts where a linked item was (classes/local/word_copy.php). */
 const MARKER = /\[\[submissioncheck-missing\|([^|\]]*)\|(\d+)\|(\d+)\]\]/;
 
 /**
