@@ -30,6 +30,8 @@ use local_submissioncheck\local\checks\linked_media;
 class word_copy {
     /** Start of a linked-item marker; amd/src/preview.js looks for the same text. */
     public const START = '[[submissioncheck-missing|';
+    /** Start of a marker for media on sign-in storage; amd/src/preview.js looks for the same text. */
+    public const CLOUD = '[[submissioncheck-cloud|';
     /** Start of a marker for a drawing the browser cannot show; amd/src/preview.js looks for the same text. */
     public const NOT_SHOWN = '[[submissioncheck-notshown|';
     /** End of a marker. */
@@ -74,6 +76,7 @@ class word_copy {
             }
             $rels = $zip->getFromName(dirname($part) . '/_rels/' . basename($part) . '.rels');
             $marked = self::mark(self::flatten($xml), $rels === false ? [] : self::linked_targets($rels));
+            $marked = self::mark_cloud($marked, $rels === false ? [] : self::cloud_targets($rels));
             if ($marked !== $xml) {
                 $zip->addFromString($part, $marked);
                 $changed = true;
@@ -254,6 +257,76 @@ class word_copy {
             }
         }
         return $targets;
+    }
+
+    /**
+     * Relationship ids of web pictures, video and sound on sign-in storage, with a name and the service.
+     *
+     * @param string $rels The part's relationships XML.
+     * @return array id => ['name' => string, 'host' => string]
+     */
+    public static function cloud_targets(string $rels): array {
+        $targets = [];
+        if (!preg_match_all('#<(?:\w+:)?Relationship\b([^>]*)/?>#', $rels, $matches)) {
+            return [];
+        }
+        foreach ($matches[1] as $attributes) {
+            preg_match_all('#(\w+)="([^"]*)"#', $attributes, $pairs, PREG_SET_ORDER);
+            $attrs = [];
+            foreach ($pairs as $pair) {
+                $attrs[$pair[1]] = html_entity_decode($pair[2], ENT_QUOTES | ENT_XML1, 'UTF-8');
+            }
+            $type = \core_text::strtolower((string) substr(strrchr($attrs['Type'] ?? '', '/') ?: '', 1));
+            $domain = \core_text::strtolower((string) parse_url($attrs['Target'] ?? '', PHP_URL_HOST));
+            if (
+                ($attrs['TargetMode'] ?? '') === 'External' && isset($attrs['Id']) && $domain !== ''
+                    && in_array($type, linked_media::CONTENT_RELATIONSHIPS, true) && linked_media::is_signin_host($domain)
+            ) {
+                $name = linked_media::basename((string) parse_url($attrs['Target'], PHP_URL_PATH));
+                $targets[$attrs['Id']] = [
+                    'name' => preg_match('#\.[A-Za-z0-9]{2,5}$#', $name) ? $name
+                        : get_string('onlinevideo', 'local_submissioncheck'),
+                    'host' => linked_media::service_name($domain),
+                ];
+            }
+        }
+        return $targets;
+    }
+
+    /**
+     * Replace each Word online video, and each picture or media link, stored on sign-in storage with a marker.
+     *
+     * @param string $xml A document part.
+     * @param array $targets From cloud_targets().
+     * @return string
+     */
+    public static function mark_cloud(string $xml, array $targets): string {
+        if (!$targets && strpos($xml, 'webVideoPr') === false) {
+            return $xml;
+        }
+        $online = get_string('onlinevideo', 'local_submissioncheck');
+        $result = preg_replace_callback('#<w:drawing\b.*?</w:drawing>#s', function ($m) use ($targets, $online) {
+            $item = null;
+            foreach (linked_media::word_online_videos($m[0]) as $video) {
+                $domain = \core_text::strtolower((string) parse_url($video['url'], PHP_URL_HOST));
+                if ($domain !== '' && linked_media::is_signin_host($domain)) {
+                    $item = ['name' => $video['name'] ?? $online, 'host' => linked_media::service_name($domain)];
+                }
+            }
+            if ($item === null && preg_match_all('#\br:(?:link|embed)="([^"]+)"#', $m[0], $ids)) {
+                foreach ($ids[1] as $id) {
+                    $item = $item ?? ($targets[$id] ?? null);
+                }
+            }
+            if ($item === null) {
+                return $m[0];
+            }
+            [$width, $height] = self::size($m[0]);
+            $marker = self::CLOUD . str_replace(['|', ']'], '', $item['name']) . '|' . str_replace(['|', ']'], '', $item['host']) .
+                '|' . $width . '|' . $height . self::END;
+            return '<w:t xml:space="preserve">' . htmlspecialchars($marker, ENT_XML1 | ENT_QUOTES, 'UTF-8') . '</w:t>';
+        }, $xml);
+        return $result ?? $xml;
     }
 
     /**

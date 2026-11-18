@@ -40,12 +40,15 @@ const OPTIONS = {
 /** Marker the server puts where a linked item was (classes/local/word_copy.php). */
 const MISSING = /\[\[submissioncheck-missing\|([^|\]]*)\|(\d+)\|(\d+)\]\]/;
 
+/** Marker the server puts where media on sign-in storage was (classes/local/word_copy.php). */
+const CLOUD = /\[\[submissioncheck-cloud\|([^|\]]*)\|([^|\]]*)\|(\d+)\|(\d+)\]\]/;
+
 /** Marker the server puts where a drawing the renderer cannot draw was (classes/local/word_copy.php). */
 const NOT_SHOWN = /\[\[submissioncheck-notshown\|(\d+)\|(\d+)\]\]/;
 
 /**
  * Replace each marker in a drawn document with its box, at the size of the original frame when known: the red
- * missing-item box for a linked item, the grey box for a drawing the preview cannot show.
+ * missing-item box for a linked item or media on sign-in storage, the grey box for a drawing the preview cannot show.
  *
  * @param {Document} doc The frame's document.
  * @returns {Promise}
@@ -55,8 +58,12 @@ const replaceMarkers = async(doc) => {
     const found = [];
     while (walker.nextNode()) {
         const missing = walker.currentNode.data.match(MISSING);
-        const notshown = missing ? null : walker.currentNode.data.match(NOT_SHOWN);
-        if (missing) {
+        const cloud = missing ? null : walker.currentNode.data.match(CLOUD);
+        const notshown = missing || cloud ? null : walker.currentNode.data.match(NOT_SHOWN);
+        if (cloud) {
+            found.push({node: walker.currentNode, template: 'missing_item', string: 'clouditem',
+                name: {name: cloud[1], host: cloud[2]}, width: parseInt(cloud[3], 10), height: parseInt(cloud[4], 10)});
+        } else if (missing) {
             found.push({node: walker.currentNode, template: 'missing_item', string: 'missingitem', name: missing[1],
                 width: parseInt(missing[2], 10), height: parseInt(missing[3], 10)});
         } else if (notshown) {

@@ -17,7 +17,8 @@ One owner per concern. Change a rule in its owner; callers pass flags or data an
 | Drawing a .docx in the browser, and replacing linked-item markers with the missing-item box | `amd/src/preview.js` (loads the bundled `amd/src/docxpreview.js`) | `tests/behat/bundled_preview.feature` |
 | Per-file report data (findings, facts, preview) | `classes/output/report_builder.php` | `tests/behat/assign_submission_checks.feature` |
 | Facts about a file (kind, pages, words, slides, sheets, formulas, charts, pictures, size), cached by content | `classes/local/file_facts.php` | `tests/file_facts_test.php` |
-| Where a linked file sits (slide or presentation page) | `classes/local/checks/linked_media.php` | `tests/checks_test.php` |
+| Where a linked file sits (slide or presentation page); online videos and media on sign-in storage, and naming the service | `classes/local/checks/linked_media.php` | `tests/checks_test.php`, `tests/behat/online_video_links.feature` |
+| Which hosts count as sign-in storage | site setting `local_submissioncheck/signinhosts` (`settings.php`; default in `linked_media::DEFAULT_SIGNIN_HOSTS`) | `tests/checks_test.php` |
 | The review page for an assignment upload (tabs, side panel, fixed answer bar) | `review.php`, `classes/output/review_page.php`, `templates/review.mustache` | `tests/behat/review_flow.feature` |
 | When the assignment page sends the student to the review page, and the banner it keeps | `classes/hook_callbacks.php`, `classes/local/adapter/assign.php` (session flag) | `tests/assign_test.php` |
 | Tabs, viewed count, keeping focus clear of the fixed bar | `amd/src/review.js` | `tests/behat/review_flow.feature` |

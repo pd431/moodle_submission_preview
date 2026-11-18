@@ -265,4 +265,21 @@ final class preview_test extends \advanced_testcase {
             word_copy::flatten('<w:body><w:p>No drawings</w:p></w:body>')
         );
     }
+
+    /**
+     * An online video on sign-in storage becomes a marker at its place with its name, service and size; one on
+     * YouTube is left as it is.
+     */
+    public function test_word_copy_online_video(): void {
+        $path = word_copy::prepare($this->fixture('sharepoint-video.docx'));
+        $this->assertNotNull($path);
+        $zip = new \ZipArchive();
+        $zip->open($path);
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        unlink($path);
+        $this->assertStringContainsString('[[submissioncheck-cloud|untitled.mp4|OneDrive|400|225]]', $xml);
+        $this->assertStringNotContainsString('webVideoPr', $xml);
+        $this->assertNull(word_copy::prepare($this->fixture('youtube-video.docx')));
+    }
 }
