@@ -38,27 +38,35 @@ const OPTIONS = {
 };
 
 /** Marker the server puts where a linked item was (classes/local/word_copy.php). */
-const MARKER = /\[\[submissioncheck-missing\|([^|\]]*)\|(\d+)\|(\d+)\]\]/;
+const MISSING = /\[\[submissioncheck-missing\|([^|\]]*)\|(\d+)\|(\d+)\]\]/;
+
+/** Marker the server puts where a drawing the renderer cannot draw was (classes/local/word_copy.php). */
+const NOT_SHOWN = /\[\[submissioncheck-notshown\|(\d+)\|(\d+)\]\]/;
 
 /**
- * Replace each marker in a drawn document with the missing-item box, at the size of the original frame when known.
+ * Replace each marker in a drawn document with its box, at the size of the original frame when known: the red
+ * missing-item box for a linked item, the grey box for a drawing the preview cannot show.
  *
  * @param {Document} doc The frame's document.
  * @returns {Promise}
  */
-const markMissing = async(doc) => {
+const replaceMarkers = async(doc) => {
     const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
     const found = [];
     while (walker.nextNode()) {
-        const match = walker.currentNode.data.match(MARKER);
-        if (match) {
-            found.push({node: walker.currentNode, name: match[1], width: parseInt(match[2], 10),
-                height: parseInt(match[3], 10)});
+        const missing = walker.currentNode.data.match(MISSING);
+        const notshown = missing ? null : walker.currentNode.data.match(NOT_SHOWN);
+        if (missing) {
+            found.push({node: walker.currentNode, template: 'missing_item', string: 'missingitem', name: missing[1],
+                width: parseInt(missing[2], 10), height: parseInt(missing[3], 10)});
+        } else if (notshown) {
+            found.push({node: walker.currentNode, template: 'not_shown', string: 'drawingnotshown', name: null,
+                width: parseInt(notshown[1], 10), height: parseInt(notshown[2], 10)});
         }
     }
     for (const item of found) {
-        const message = await getString('missingitem', 'local_submissioncheck', item.name);
-        const {html} = await Templates.renderForPromise('local_submissioncheck/missing_item', {
+        const message = await getString(item.string, 'local_submissioncheck', item.name);
+        const {html} = await Templates.renderForPromise('local_submissioncheck/' + item.template, {
             message: message,
             width: item.width ? item.width + 'px' : null,
             height: item.height ? item.height + 'px' : null,
@@ -119,7 +127,7 @@ const renderOne = async(region) => {
         region.replaceChildren(frame);
         const doc = frame.contentDocument;
         await renderer.renderAsync(data, doc.body, doc.head, OPTIONS);
-        await markMissing(doc);
+        await replaceMarkers(doc);
         doc.querySelectorAll('a[href]').forEach((link) => {
             if (!link.getAttribute('href').startsWith('#')) {
                 link.removeAttribute('href');

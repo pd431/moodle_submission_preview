@@ -59,6 +59,7 @@ $string['continuechecking'] = 'Continue checking your submission';
 $string['defaulttags'] = 'Tags that turn checks on';
 $string['defaulttags_desc'] = 'Comma-separated tags. An assignment or quiz whose "Submission checks" setting is Automatic has checks on when it carries one of these tags, for example: summative, formative.';
 $string['disclaimer'] = 'This is an approximate preview of your document(s). Layout may be approximate. Use it to check this is what you intended to submit to {$a->modulecode} {$a->assessment}, and that it has all the content you expect, and the latest changes you made to it.';
+$string['drawingnotshown'] = 'Drawing not shown in this preview. Your marker will see it.';
 $string['event_upload_confirmed'] = 'Submitted file confirmed';
 $string['event_upload_returned'] = 'Went back to replace a submitted file';
 $string['factabout'] = 'About {$a}';

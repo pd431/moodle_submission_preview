@@ -28,17 +28,23 @@ use local_submissioncheck\local\checks\linked_media;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class word_copy {
-    /** Start of a marker; amd/src/preview.js looks for the same text. */
+    /** Start of a linked-item marker; amd/src/preview.js looks for the same text. */
     public const START = '[[submissioncheck-missing|';
+    /** Start of a marker for a drawing the browser cannot show; amd/src/preview.js looks for the same text. */
+    public const NOT_SHOWN = '[[submissioncheck-notshown|';
     /** End of a marker. */
     public const END = ']]';
-    /** Parts of the document whose linked items are marked. */
-    public const PARTS = ['word/document.xml'];
+    /** Parts of the document that are prepared: the body, then headers and footers. */
+    public const PARTS_REGEX = '#^word/(document|header\d*|footer\d*)\.xml$#';
+    /** Picture graphic data. */
+    public const PICTURE_URI = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
     /** English Metric Units per CSS pixel. */
     public const EMU_PER_PX = 9525;
 
     /**
-     * A copy of the document with markers in place of linked items, or null when it has none (send it as it is).
+     * A copy of the document the browser can draw, or null when it needs no change (send it as it is): drawing groups
+     * become the pictures in them, text in text boxes joins the text flow, drawings with neither get a "not shown"
+     * marker, and linked items get a missing-item marker.
      *
      * @param \stored_file $file
      * @return string|null Path of the temporary copy; the caller removes it.
@@ -54,13 +60,20 @@ class word_copy {
             return null;
         }
         $changed = false;
-        foreach (self::PARTS as $part) {
+        $parts = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = (string) $zip->getNameIndex($i);
+            if (preg_match(self::PARTS_REGEX, $name)) {
+                $parts[] = $name;
+            }
+        }
+        foreach ($parts as $part) {
             $xml = $zip->getFromName($part);
-            $rels = $zip->getFromName(dirname($part) . '/_rels/' . basename($part) . '.rels');
-            if ($xml === false || $rels === false) {
+            if ($xml === false) {
                 continue;
             }
-            $marked = self::mark($xml, self::linked_targets($rels));
+            $rels = $zip->getFromName(dirname($part) . '/_rels/' . basename($part) . '.rels');
+            $marked = self::mark(self::flatten($xml), $rels === false ? [] : self::linked_targets($rels));
             if ($marked !== $xml) {
                 $zip->addFromString($part, $marked);
                 $changed = true;
@@ -72,6 +85,147 @@ class word_copy {
             return null;
         }
         return $path;
+    }
+
+    /**
+     * Make every drawing one the browser renderer can draw: alternative content becomes Word's first choice, a group
+     * becomes the pictures in it, text in text boxes joins the text flow at the box's place, and a drawing with no
+     * picture and no text becomes a "not shown" marker at its size.
+     *
+     * @param string $xml A document part.
+     * @return string
+     */
+    public static function flatten(string $xml): string {
+        if (strpos($xml, '<w:drawing') === false) {
+            return $xml;
+        }
+        $original = $xml;
+        // Innermost alternative content first, so a block inside another is never cut in two (found by plain string
+        // search: patterns run out of backtracking on long documents). Blocks whose first choice holds no drawing are
+        // left for the renderer, their tags set aside under other names while this runs.
+        $tags = ['AlternateContent', 'Choice', 'Fallback'];
+        $kept = function (string $block) use ($tags): string {
+            foreach ($tags as $tag) {
+                $block = str_replace(
+                    ['<mc:' . $tag . '>', '<mc:' . $tag . ' ', '</mc:' . $tag . '>'],
+                    ['<mc:' . $tag . 'Kept>', '<mc:' . $tag . 'Kept ', '</mc:' . $tag . 'Kept>'],
+                    $block
+                );
+            }
+            return $block;
+        };
+        $open = '<mc:AlternateContent';
+        $close = '</mc:AlternateContent>';
+        while (($end = strpos($xml, $close)) !== false) {
+            // The last opening tag before the first closing tag starts the innermost block.
+            $before = substr($xml, 0, $end);
+            $start = max((int) strrpos($before, $open . '>'), (int) strrpos($before, $open . ' '));
+            if ($start === 0 && strpos($before, $open . '>') !== 0 && strpos($before, $open . ' ') !== 0) {
+                return $original;
+            }
+            $block = substr($xml, $start, $end + strlen($close) - $start);
+            $inner = substr($block, strpos($block, '>') + 1, -strlen($close));
+            if (
+                preg_match('#^\s*<mc:Choice\b[^>]*>(.*?)</mc:Choice>#s', $inner, $choice)
+                    && strpos($choice[1], '<w:drawing') !== false
+            ) {
+                $replacement = $choice[1];
+            } else {
+                $replacement = $kept($block);
+            }
+            $xml = substr($xml, 0, $start) . $replacement . substr($xml, $end + strlen($close));
+        }
+        foreach ($tags as $tag) {
+            $xml = str_replace(['<mc:' . $tag . 'Kept', '</mc:' . $tag . 'Kept>'], ['<mc:' . $tag, '</mc:' . $tag . '>'], $xml);
+        }
+        $flat = preg_replace_callback('#<w:drawing\b.*?</w:drawing>#s', function ($m) {
+            $drawing = $m[0];
+            if (strpos($drawing, 'uri="' . self::PICTURE_URI . '"') !== false && strpos($drawing, '<wpg:') === false) {
+                return $drawing;
+            }
+            [$width, $height] = self::size($drawing);
+            $out = '';
+            if (preg_match_all('#<pic:pic\b.*?</pic:pic>#s', $drawing, $pictures)) {
+                $scale = self::group_scale($drawing);
+                foreach ($pictures[0] as $index => $picture) {
+                    $out .= self::inline_picture($picture, $scale, $index);
+                }
+            }
+            if (preg_match_all('#<w:txbxContent\b[^>]*>(.*?)</w:txbxContent>#s', $drawing, $boxes)) {
+                foreach ($boxes[1] as $box) {
+                    $out .= self::lifted_text($box);
+                }
+            }
+            if ($out === '') {
+                $marker = self::NOT_SHOWN . $width . '|' . $height . self::END;
+                return '<w:t xml:space="preserve">' . $marker . '</w:t>';
+            }
+            return $out;
+        }, $xml);
+        return $flat ?? $original;
+    }
+
+    /**
+     * How a group's child coordinates map to its size on the page.
+     *
+     * @param string $drawing
+     * @return float[] [x, y]
+     */
+    protected static function group_scale(string $drawing): array {
+        if (
+            preg_match(
+                '#<wpg:grpSpPr>.*?<a:ext cx="(\d+)" cy="(\d+)"\s*/>.*?<a:chExt cx="(\d+)" cy="(\d+)"\s*/>#s',
+                $drawing,
+                $m
+            )
+        ) {
+            return [(int) $m[1] / max(1, (int) $m[3]), (int) $m[2] / max(1, (int) $m[4])];
+        }
+        return [1.0, 1.0];
+    }
+
+    /**
+     * One picture from a group as an ordinary inline picture, at its size in the group.
+     *
+     * @param string $picture The pic:pic element.
+     * @param float[] $scale
+     * @param int $index
+     * @return string
+     */
+    protected static function inline_picture(string $picture, array $scale, int $index): string {
+        $cx = $cy = 0;
+        if (preg_match('#<a:ext cx="(\d+)" cy="(\d+)"#', $picture, $m)) {
+            $cx = (int) round($m[1] * $scale[0]);
+            $cy = (int) round($m[2] * $scale[1]);
+        }
+        if (strpos($picture, 'xmlns:pic=') === false) {
+            $picture = preg_replace('#^<pic:pic\b#', '<pic:pic xmlns:pic="' . self::PICTURE_URI . '"', $picture);
+        }
+        return '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/>' .
+            '<wp:docPr id="' . (900000 + $index) . '" name="Picture"/>' .
+            '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="' . self::PICTURE_URI .
+            '">' . $picture . '</a:graphicData></a:graphic></wp:inline></w:drawing>';
+    }
+
+    /**
+     * The text of a text box as runs in the surrounding paragraph, one line per paragraph of the box.
+     *
+     * @param string $box The inside of w:txbxContent.
+     * @return string
+     */
+    protected static function lifted_text(string $box): string {
+        $out = '';
+        if (!preg_match_all('#<w:p\b.*?</w:p>#s', $box, $paragraphs)) {
+            return '';
+        }
+        foreach ($paragraphs[0] as $paragraph) {
+            preg_match_all('#<w:t\b[^>]*>([^<]*)</w:t>#', $paragraph, $texts);
+            $text = implode('', $texts[1]);
+            if (trim(html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8')) !== '') {
+                $out .= '<w:br/><w:t xml:space="preserve">' . $text . '</w:t>';
+            }
+        }
+        return $out;
     }
 
     /**

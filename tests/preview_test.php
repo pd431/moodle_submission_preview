@@ -219,4 +219,50 @@ final class preview_test extends \advanced_testcase {
         $this->assertStringContainsString('graph1.png is not included in this document. A marker will not see it.', $html);
         $this->assertStringContainsString('data-region="local-submissioncheck-missing"', $html);
     }
+
+    /**
+     * A drawing group becomes the pictures in it; text in its text box joins the text; a group with neither becomes a
+     * "not shown" marker at its size. A plain document is sent as it is.
+     */
+    public function test_word_copy_groups(): void {
+        $path = word_copy::prepare($this->fixture('grouped-pictures.docx'));
+        $this->assertNotNull($path);
+        $zip = new \ZipArchive();
+        $zip->open($path);
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        unlink($path);
+        $this->assertStringNotContainsString('<wpg:wgp>', $xml);
+        $this->assertSame(1, substr_count($xml, '<a:blip r:embed="rId100"/>'));
+        $this->assertStringContainsString('<wp:extent cx="2857500" cy="1428750"/>', $xml);
+        $this->assertStringContainsString('<w:br/><w:t xml:space="preserve">Caption inside the group</w:t>', $xml);
+        $this->assertStringContainsString('[[submissioncheck-notshown|100|100]]', $xml);
+        $doc = new \DOMDocument();
+        $this->assertTrue($doc->loadXML($xml));
+    }
+
+    /**
+     * Alternative content without a drawing is left alone; nested blocks are unwrapped from the inside.
+     */
+    public function test_word_copy_alternate_content(): void {
+        $kept = '<w:r><mc:AlternateContent><mc:Choice Requires="w14"><w:t>new</w:t></mc:Choice><mc:Fallback><w:t>old</w:t>' .
+            '</mc:Fallback></mc:AlternateContent></w:r>';
+        $shape = '<w:r><mc:AlternateContent><mc:Choice Requires="wps"><w:drawing><wp:inline><wp:extent cx="952500" cy="476250"/>' .
+            '<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:wsp>' .
+            '<wps:txbx><w:txbxContent><w:p><w:r><w:t>Boxed words</w:t></w:r></w:p></w:txbxContent></wps:txbx></wps:wsp>' .
+            '</a:graphicData></a:graphic></wp:inline></w:drawing></mc:Choice><mc:Fallback><w:pict/></mc:Fallback>' .
+            '</mc:AlternateContent></w:r>';
+        $out = word_copy::flatten('<w:body><w:p>' . $kept . $shape . '</w:p></w:body>');
+        $nested = word_copy::flatten('<w:body><w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">' . $kept .
+            '<w:drawing><wp:inline><wp:extent cx="9525" cy="9525"/><a:graphic><a:graphicData uri="x"/></a:graphic></wp:inline>' .
+            '</w:drawing></mc:Choice><mc:Fallback/></mc:AlternateContent></w:r></w:p></w:body>');
+        $this->assertStringContainsString($kept . '<w:t xml:space="preserve">[[submissioncheck-notshown|1|1]]</w:t>', $nested);
+        $this->assertStringContainsString($kept, $out);
+        $this->assertStringContainsString('<w:br/><w:t xml:space="preserve">Boxed words</w:t>', $out);
+        $this->assertStringNotContainsString('<w:pict/>', $out);
+        $this->assertSame(
+            '<w:body><w:p>No drawings</w:p></w:body>',
+            word_copy::flatten('<w:body><w:p>No drawings</w:p></w:body>')
+        );
+    }
 }
