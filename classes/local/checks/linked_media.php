@@ -43,6 +43,24 @@ class linked_media extends check {
     /** Most relationship parts read from one package. */
     public const MAX_PARTS = 2000;
 
+    /** Default for the signinhosts setting: storage where items open only for people they are shared with. */
+    public const DEFAULT_SIGNIN_HOSTS = ['sharepoint.com', 'onedrive.live.com', '1drv.ms', 'svc.ms', 'microsoftstream.com',
+        'drive.google.com', 'docs.google.com', 'dropbox.com', 'box.com', 'icloud.com'];
+
+    /** Service names shown for known hosts: host pattern => name. The first that matches wins. */
+    public const SERVICE_NAMES = [
+        '#-my\.sharepoint\.[a-z]+$#' => 'OneDrive',
+        '#(^|\.)onedrive\.live\.com$#' => 'OneDrive',
+        '#(^|\.)1drv\.ms$#' => 'OneDrive',
+        '#(^|\.)svc\.ms$#' => 'OneDrive',
+        '#(^|\.)sharepoint\.[a-z]+$#' => 'SharePoint',
+        '#(^|\.)microsoftstream\.com$#' => 'Microsoft Stream',
+        '#(^|\.)(drive|docs)\.google\.com$#' => 'Google Drive',
+        '#(^|\.)dropbox(usercontent)?\.com$#' => 'Dropbox',
+        '#(^|\.)box\.com$#' => 'Box',
+        '#(^|\.)icloud\.com$#' => 'iCloud',
+    ];
+
     /**
      * Name of this check, stored with its results.
      *
@@ -58,7 +76,7 @@ class linked_media extends check {
      * @return int
      */
     public function get_version(): int {
-        return 2;
+        return 3;
     }
 
     /**
@@ -79,18 +97,214 @@ class linked_media extends check {
      * @return finding[]
      */
     public function run(inspected_file $file): array {
+        $findings = [];
         $found = self::locate($file);
-        if (!$found) {
-            return [];
+        if ($found) {
+            $names = array_values(array_unique(array_column($found, 'name')));
+            $findings[] = new finding('linkedmedia', ['name' => $file->get_filename(), 'slides' => self::slides($found)], $names);
         }
-        $names = array_values(array_unique(array_column($found, 'name')));
-        $locations = [];
+        $cloud = self::locate_cloud($file);
+        if ($cloud) {
+            $names = array_values(array_unique(array_column($cloud, 'name')));
+            $findings[] = new finding('cloudmedia', [
+                'name' => $file->get_filename(),
+                'slides' => self::slides($cloud),
+                'hosts' => array_column($cloud, 'host', 'name'),
+            ], $names);
+        }
+        return $findings;
+    }
+
+    /**
+     * The first slide each named item is on.
+     *
+     * @param array $found
+     * @return array name => slide
+     */
+    protected static function slides(array $found): array {
+        $slides = [];
         foreach ($found as $item) {
-            if ($item['slide'] !== null && !isset($locations[$item['name']])) {
-                $locations[$item['name']] = $item['slide'];
+            if ($item['slide'] !== null && !isset($slides[$item['name']])) {
+                $slides[$item['name']] = $item['slide'];
             }
         }
-        return [new finding('linkedmedia', ['name' => $file->get_filename(), 'slides' => $locations], $names)];
+        return $slides;
+    }
+
+    /**
+     * Media the file plays or shows from sign-in storage, where access depends on sharing settings: Word online videos,
+     * and linked pictures, video and sound on those hosts. Plain hyperlinks in text are not media.
+     *
+     * @param inspected_file $file
+     * @return array [['name' => string, 'host' => service name, 'slide' => int|null], ...]
+     */
+    public static function locate_cloud(inspected_file $file): array {
+        return array_values(array_filter(self::locate_web_media($file), function ($item) {
+            return $item['signin'];
+        }));
+    }
+
+    /**
+     * Every online video and linked web picture, video or sound file in a Word, PowerPoint or OpenDocument file.
+     *
+     * @param inspected_file $file
+     * @return array [['name' => string, 'host' => string, 'domain' => string, 'signin' => bool, 'slide' => int|null], ...]
+     */
+    public static function locate_web_media(inspected_file $file): array {
+        $found = [];
+        $add = function (string $url, string $name, ?int $slide) use (&$found) {
+            $domain = \core_text::strtolower((string) parse_url(trim($url), PHP_URL_HOST));
+            if ($domain === '' || !preg_match('#^https?://#i', trim($url))) {
+                return;
+            }
+            $signin = self::is_signin_host($domain);
+            $item = ['name' => $name, 'host' => $signin ? self::service_name($domain) : self::short_domain($domain),
+                'domain' => $domain, 'signin' => $signin, 'slide' => $slide];
+            if (!in_array($item, $found, true)) {
+                $found[] = $item;
+            }
+        };
+        $online = get_string('onlinevideo', 'local_submissioncheck');
+        if ($file->get_type() === inspected_file::TYPE_OOXML) {
+            $parts = array_slice($file->find_entries('#^(word|ppt)/.*\.xml(\.rels)?$#'), 0, self::MAX_PARTS);
+            natsort($parts);
+            foreach ($parts as $part) {
+                $xml = (string) $file->read_entry($part);
+                $slide = preg_match('#^ppt/slides/(_rels/)?slide(\d+)\.xml(\.rels)?$#', $part, $m) ? (int) $m[2] : null;
+                if (substr($part, -5) === '.rels') {
+                    if (stripos($xml, 'External') === false) {
+                        continue;
+                    }
+                    foreach ((new self())->elements($xml, 'Relationship') as $attrs) {
+                        $type = \core_text::strtolower((string) substr(strrchr($attrs['Type'] ?? '', '/') ?: '', 1));
+                        if (($attrs['TargetMode'] ?? '') === 'External' && in_array($type, self::CONTENT_RELATIONSHIPS, true)) {
+                            $target = (string) ($attrs['Target'] ?? '');
+                            $add($target, self::web_name($target, $online), $slide);
+                        }
+                    }
+                } else if (strpos($xml, 'webVideoPr') !== false) {
+                    foreach (self::word_online_videos($xml) as $video) {
+                        $add($video['url'], $video['name'] ?? $online, $slide);
+                    }
+                }
+            }
+        } else if ($file->get_type() === inspected_file::TYPE_ODF) {
+            foreach ((new self())->elements((string) $file->read_entry('content.xml'), self::ODF_CONTENT_ELEMENTS) as $attrs) {
+                $href = (string) ($attrs['xlink:href'] ?? '');
+                $add($href, self::web_name($href, $online), $attrs['#page']);
+            }
+        }
+        return $found;
+    }
+
+    /**
+     * Word online videos in a part: the player address and the video's stored description.
+     *
+     * @param string $xml
+     * @return array [['url' => string, 'name' => string|null, 'drawing' => string], ...]
+     */
+    public static function word_online_videos(string $xml): array {
+        $videos = [];
+        if (!preg_match_all('#<w:drawing\b.*?</w:drawing>#s', $xml, $drawings)) {
+            return [];
+        }
+        foreach ($drawings[0] as $drawing) {
+            if (!preg_match('#<wp15:webVideoPr\b[^>]*\bembeddedHtml="([^"]*)"#', $drawing, $m)) {
+                continue;
+            }
+            $html = html_entity_decode($m[1], ENT_QUOTES | ENT_XML1, 'UTF-8');
+            if (!preg_match('#\ssrc\s*=\s*["\']([^"\']+)["\']#i', $html, $src)) {
+                continue;
+            }
+            $name = null;
+            if (preg_match('#<wp:docPr\b[^>]*\bdescr="([^"]+)"#', $drawing, $d)) {
+                $name = trim(html_entity_decode($d[1], ENT_QUOTES | ENT_XML1, 'UTF-8')) ?: null;
+            }
+            $videos[] = ['url' => html_entity_decode($src[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'), 'name' => $name,
+                'drawing' => $drawing];
+        }
+        return $videos;
+    }
+
+    /**
+     * The sign-in storage hosts from the site setting; sub-sites match.
+     *
+     * @return string[]
+     */
+    public static function signin_hosts(): array {
+        $setting = get_config('local_submissioncheck', 'signinhosts');
+        if ($setting === false) {
+            return self::DEFAULT_SIGNIN_HOSTS;
+        }
+        $hosts = preg_split('#[\s,]+#', \core_text::strtolower((string) $setting), -1, PREG_SPLIT_NO_EMPTY);
+        return array_values(array_unique(array_map(function ($host) {
+            return trim(preg_replace('#^(https?://)?(www\.)?#', '', $host), './');
+        }, $hosts)));
+    }
+
+    /**
+     * Whether a host is sign-in storage: one of the setting's hosts or a sub-site of one.
+     *
+     * @param string $domain
+     * @return bool
+     */
+    public static function is_signin_host(string $domain): bool {
+        foreach (self::signin_hosts() as $host) {
+            if ($host !== '' && ($domain === $host || substr($domain, -strlen($host) - 1) === '.' . $host)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The service a sign-in storage host belongs to, or the host when it is not a known one.
+     *
+     * @param string $domain
+     * @return string
+     */
+    public static function service_name(string $domain): string {
+        foreach (self::SERVICE_NAMES as $pattern => $name) {
+            if (preg_match($pattern, $domain)) {
+                return $name;
+            }
+        }
+        return self::short_domain($domain);
+    }
+
+    /**
+     * A host without "www.".
+     *
+     * @param string $domain
+     * @return string
+     */
+    protected static function short_domain(string $domain): string {
+        return preg_replace('#^www\.#', '', $domain);
+    }
+
+    /**
+     * A name for linked web media: the file name when the address has one, else the fallback.
+     *
+     * @param string $url
+     * @param string $fallback
+     * @return string
+     */
+    protected static function web_name(string $url, string $fallback): string {
+        $candidates = [];
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        foreach (['id', 'file', 'path'] as $key) {
+            if (!empty($query[$key]) && is_string($query[$key])) {
+                $candidates[] = $query[$key];
+            }
+        }
+        $candidates[] = (string) parse_url($url, PHP_URL_PATH);
+        foreach ($candidates as $path) {
+            $name = self::basename($path);
+            if (preg_match('#\.[A-Za-z0-9]{2,5}$#', $name) && !preg_match('#\.(aspx|php|html?)$#i', $name)) {
+                return $name;
+            }
+        }
+        return $fallback;
     }
 
     /**

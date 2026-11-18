@@ -270,4 +270,56 @@ final class checks_test extends \advanced_testcase {
             local\checks\linked_media::locate(new inspected_file($path, 'linked-image.docx'))
         );
     }
+
+    /**
+     * Sign-in storage: the setting's hosts and their sub-sites match; known services get a plain name.
+     */
+    public function test_signin_hosts(): void {
+        $this->resetAfterTest();
+        $media = local\checks\linked_media::class;
+        $this->assertTrue($media::is_signin_host('universityofexeteruk-my.sharepoint.com'));
+        $this->assertTrue($media::is_signin_host('sharepoint.com'));
+        $this->assertFalse($media::is_signin_host('notsharepoint.com'));
+        $this->assertFalse($media::is_signin_host('www.youtube.com'));
+        $this->assertSame('OneDrive', $media::service_name('example-my.sharepoint.com'));
+        $this->assertSame('SharePoint', $media::service_name('example.sharepoint.com'));
+        $this->assertSame('OneDrive', $media::service_name('1drv.ms'));
+        $this->assertSame('Google Drive', $media::service_name('docs.google.com'));
+        $this->assertSame('iCloud', $media::service_name('www.icloud.com'));
+        $this->assertSame('files.example.org', $media::service_name('files.example.org'));
+
+        set_config('signinhosts', "dropbox.com\nhttps://www.files.example.org/", 'local_submissioncheck');
+        $this->assertFalse($media::is_signin_host('example-my.sharepoint.com'));
+        $this->assertTrue($media::is_signin_host('www.dropbox.com'));
+        $this->assertTrue($media::is_signin_host('files.example.org'));
+    }
+
+    /**
+     * An online video on OneDrive is a warning named by its description; one on YouTube is not; a presentation's
+     * linked video on OneDrive is a warning with its slide.
+     */
+    public function test_online_video_findings(): void {
+        global $CFG;
+        $this->resetAfterTest();
+        $dir = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/';
+        $check = new local\checks\linked_media();
+
+        $findings = $check->run(new inspected_file($dir . 'sharepoint-video.docx', 'sharepoint-video.docx'));
+        $this->assertSame(['cloudmedia'], array_column(array_map(fn($f) => $f->to_array(), $findings), 'code'));
+        $this->assertSame(
+            ['untitled.mp4 is not included in this document. It is stored on OneDrive. A marker will not see it.'],
+            $findings[0]->item_labels()
+        );
+
+        $this->assertSame([], $check->run(new inspected_file($dir . 'youtube-video.docx', 'youtube-video.docx')));
+        $this->assertSame([], $check->run(new inspected_file($dir . 'essay.docx', 'essay.docx')));
+
+        $findings = $check->run(new inspected_file($dir . 'sharepoint-video.pptx', 'sharepoint-video.pptx'));
+        $this->assertCount(1, $findings);
+        $this->assertSame('cloudmedia', $findings[0]->code);
+        $this->assertStringContainsString(
+            'interview.mp4 (slide 1) is not included in this document. It is stored on OneDrive.',
+            implode(' ', $findings[0]->item_labels())
+        );
+    }
 }

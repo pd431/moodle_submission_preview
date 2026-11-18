@@ -85,10 +85,13 @@ class finding {
      */
     public function item_labels(): array {
         $slides = (array) ($this->params['slides'] ?? []);
-        return array_map(function ($item) use ($slides) {
-            return isset($slides[$item])
-                ? get_string('itemonslide', 'local_submissioncheck', (object) ['name' => $item, 'slide' => $slides[$item]])
-                : $item;
+        $hosts = (array) ($this->params['hosts'] ?? []);
+        return array_map(function ($item) use ($slides, $hosts) {
+            $a = (object) ['name' => $item, 'slide' => $slides[$item] ?? null, 'host' => $hosts[$item] ?? null];
+            if ($a->host !== null) {
+                return get_string($a->slide !== null ? 'itemcloudslide' : 'itemcloud', 'local_submissioncheck', $a);
+            }
+            return $a->slide !== null ? get_string('itemonslide', 'local_submissioncheck', $a) : $item;
         }, $this->items);
     }
 
@@ -98,9 +101,10 @@ class finding {
      * @return string
      */
     public function get_summary(): string {
-        return get_string('findingshort_' . $this->code, 'local_submissioncheck', (object) ($this->localised_params() + [
-            'items' => implode(', ', $this->items),
-        ]));
+        return get_string('findingshort_' . $this->code, 'local_submissioncheck', (object) (array_filter(
+            $this->localised_params(),
+            'is_scalar'
+        ) + ['items' => implode(', ', $this->item_labels())]));
     }
 
     /**
