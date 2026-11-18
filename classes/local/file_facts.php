@@ -185,8 +185,33 @@ class file_facts {
             }
             $facts[] = self::fact('factwords', self::number($words));
         }
-        $pictures = self::pictures($file, $kind === 'word' ? '#^word/media/#' : '#^Pictures/#');
+        $pictures = $kind === 'word' ? self::pictures($file, null, self::word_pictures($file))
+            : self::pictures($file, '#^Pictures/#');
         return $pictures ? array_merge($facts, [$pictures]) : $facts;
+    }
+
+    /**
+     * Embedded pictures placed in a Word document, each counted once. Word keeps a second copy of each picture for
+     * older readers (VML), so the media folder can hold twice as many files as there are pictures.
+     *
+     * @param inspected_file $file
+     * @return int
+     */
+    protected static function word_pictures(inspected_file $file): int {
+        $drawingml = [];
+        $vml = [];
+        foreach ($file->find_entries('#^word/(document|header\d*|footer\d*)\.xml$#') as $part) {
+            $xml = (string) $file->read_entry($part);
+            preg_match_all('#<a:blip\b[^>]*\br:embed="([^"]+)"#', $xml, $m);
+            foreach ($m[1] as $id) {
+                $drawingml[$part . '#' . $id] = true;
+            }
+            preg_match_all('#<v:imagedata\b[^>]*\br:id="([^"]+)"#', $xml, $m);
+            foreach ($m[1] as $id) {
+                $vml[$part . '#' . $id] = true;
+            }
+        }
+        return $drawingml ? count($drawingml) : count($vml);
     }
 
     /**
@@ -273,13 +298,16 @@ class file_facts {
      * Pictures and media embedded in a package, and linked ones the marker will not get.
      *
      * @param inspected_file $file
-     * @param string $mediaregex Entries holding embedded media.
+     * @param string|null $mediaregex Entries holding embedded media, when they are counted from the package.
+     * @param int $embedded Embedded pictures already counted, when they are not.
      * @return array|null
      */
-    protected static function pictures(inspected_file $file, string $mediaregex): ?array {
-        $embedded = count(array_filter($file->find_entries($mediaregex), function ($name) {
-            return substr($name, -1) !== '/';
-        }));
+    protected static function pictures(inspected_file $file, ?string $mediaregex, int $embedded = 0): ?array {
+        if ($mediaregex !== null) {
+            $embedded = count(array_filter($file->find_entries($mediaregex), function ($name) {
+                return substr($name, -1) !== '/';
+            }));
+        }
         $linked = count(array_unique(array_column(linked_media::locate($file), 'name')));
         $parts = [];
         if ($embedded) {
