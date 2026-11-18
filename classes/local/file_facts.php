@@ -104,6 +104,10 @@ class file_facts {
                 $facts[] = self::fact('factwords', self::number(checks\empty_text::count_words($file->read_all())));
                 break;
         }
+        $online = self::online_videos($file);
+        if ($online) {
+            $facts[] = $online;
+        }
         $saved = self::saved($file, $kind);
         if ($saved) {
             $facts[] = self::fact('factsaved', userdate($saved, get_string('strftimedatetimeshort', 'langconfig')));
@@ -317,6 +321,25 @@ class file_facts {
             $parts[] = get_string('factlinked', 'local_submissioncheck', self::number($linked));
         }
         return $parts ? self::fact('factpictures', implode(', ', $parts)) : null;
+    }
+
+    /**
+     * Online videos and web media the file plays or shows, with the sites they come from.
+     *
+     * @param inspected_file $file
+     * @return array|null
+     */
+    protected static function online_videos(inspected_file $file): ?array {
+        $items = linked_media::locate_web_media($file);
+        if (!$items) {
+            return null;
+        }
+        $a = (object) ['count' => count($items), 'hosts' => implode(', ', array_unique(array_column($items, 'host')))];
+        return self::fact('factonline', get_string(
+            count($items) === 1 ? 'factonlinevideos_one' : 'factonlinevideos',
+            'local_submissioncheck',
+            $a
+        ));
     }
 
     /**

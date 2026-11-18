@@ -54,6 +54,8 @@ final class file_facts_test extends \advanced_testcase {
         $this->assertArrayHasKey('File size', $facts);
         $this->assertArrayNotHasKey('Pictures and media', $facts);
         $this->assertSame('1 linked, not included', $this->facts('linked-image.docx')['Pictures and media']);
+        $this->assertSame('1 online video (youtube.com)', $this->facts('youtube-video.docx')['Online videos']);
+        $this->assertSame('1 online video (OneDrive)', $this->facts('sharepoint-video.docx')['Online videos']);
         // A picture inside a drawing group counts once, as embedded.
         $this->assertSame('1 embedded', $this->facts('grouped-pictures.docx')['Pictures and media']);
     }
