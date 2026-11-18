@@ -322,4 +322,22 @@ final class checks_test extends \advanced_testcase {
             implode(' ', $findings[0]->item_labels())
         );
     }
+
+    /**
+     * Content that matches no known kind under a name with a signature cannot be opened; plain text and other names
+     * keep their own results; a real MP3 is sound.
+     */
+    public function test_unrecognised_content(): void {
+        global $CFG;
+        $dir = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/';
+        $this->assertSame([['cannotopen'], []], $this->run_checks($dir . 'damaged-start.docx', 'damaged-start.docx'));
+        $this->assertSame([['cannotopen'], []], $this->run_checks($dir . 'noise.pdf', 'noise.pdf'));
+        $this->assertSame(['wrongextension'], $this->run_checks($dir . 'renamed.docx', 'renamed.docx')[0]);
+        $this->assertSame([[], []], $this->run_checks($dir . 'noise.pdf', 'noise.bin'));
+        $this->assertSame([[], []], $this->run_checks($dir . 'clip.mp3', 'clip.mp3'));
+        $this->assertSame(inspected_file::TYPE_MP3, (new inspected_file($dir . 'clip.mp3', 'clip.mp3'))->get_type());
+        $this->assertSame([[], []], $this->run_checks($dir . 'essay.docx', 'essay.docx'));
+        // What a real MP3 named .docx reports today (recorded, not changed in this build).
+        $this->assertSame([[], []], $this->run_checks($dir . 'clip.mp3', 'clip.docx'));
+    }
 }
