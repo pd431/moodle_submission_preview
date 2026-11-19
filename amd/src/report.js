@@ -14,23 +14,14 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Moves the check report to the top of the assignment page and refreshes it while a preview is made.
+ * Moves the submission check banner (and any notes for staff) to the top of the assignment page.
  *
  * @module     local_submissioncheck/report
  * @copyright  2026 Pierre Camaly de Brosses - University of Exeter
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import Ajax from 'core/ajax';
-import Templates from 'core/templates';
-import Notification from 'core/notification';
 import Pending from 'core/pending';
-
-/** How often to ask whether a preview is ready, in milliseconds. */
-const POLL_INTERVAL = 5000;
-
-/** How many times to ask before leaving the "preparing" message in place. */
-const MAX_POLLS = 36;
 
 /**
  * Put an element first in the page's main content.
@@ -45,53 +36,15 @@ const moveToTop = (element) => {
 };
 
 /**
- * Ask for the report again until no preview is pending.
+ * Move what the plugin added to the page to the top of the main content.
  *
- * @param {HTMLElement} report
- * @param {number} count Polls so far.
- */
-const poll = (report, count) => {
-    if (count >= MAX_POLLS) {
-        return;
-    }
-    window.setTimeout(() => {
-        Ajax.call([{
-            methodname: 'local_submissioncheck_get_assign_report',
-            args: {cmid: parseInt(report.dataset.cmid, 10)},
-        }])[0].then((response) => {
-            if (!response.html) {
-                return null;
-            }
-            // Replacing is synchronous in some Moodle versions and returns a promise in others.
-            return Promise.resolve(Templates.replaceNodeContents(report, response.html, '')).then(() => {
-                const replacement = report.querySelector('[data-region="local-submissioncheck-report"]');
-                if (replacement) {
-                    report.replaceWith(replacement);
-                    if (response.pending) {
-                        poll(replacement, count + 1);
-                    }
-                }
-                return null;
-            });
-        }).catch(Notification.exception);
-    }, POLL_INTERVAL);
-};
-
-/**
- * Move what the plugin added to the page to the top of the main content, and keep the report up to date.
- *
- * @param {string} id The id of the element holding the report and any notes for staff.
+ * @param {string} id The id of the element holding the banner and any notes for staff.
  */
 export const init = (id) => {
     const start = () => {
         const wrapper = document.getElementById(id);
-        if (!wrapper) {
-            return;
-        }
-        moveToTop(wrapper);
-        const report = wrapper.querySelector('[data-region="local-submissioncheck-report"]');
-        if (report && report.dataset.pending) {
-            poll(report, 0);
+        if (wrapper) {
+            moveToTop(wrapper);
         }
     };
     // This is printed after the footer's scripts, so it may not be in the document yet.

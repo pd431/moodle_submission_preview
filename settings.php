@@ -57,5 +57,12 @@ if ($hassiteconfig) {
             'https://aka.ms/file_embedding',
             PARAM_URL
         ));
+        $settings->add(new admin_setting_configtextarea(
+            'local_submissioncheck/signinhosts',
+            get_string('signinhosts', 'local_submissioncheck'),
+            get_string('signinhosts_desc', 'local_submissioncheck'),
+            implode("\n", \local_submissioncheck\local\checks\linked_media::DEFAULT_SIGNIN_HOSTS),
+            PARAM_RAW_TRIMMED
+        ));
     }
 }

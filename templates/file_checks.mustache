@@ -1,0 +1,66 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_submissioncheck/file_checks
+
+    One file's side panel: what is broken, in red and only when something is (each item once, with a short reason
+    and its place; selecting an item shows it in the preview when the preview marks it), then the questions that help
+    a student check this is the right file. Nothing is shown to say a file is fine.
+
+    Example context (json):
+    {
+        "name": "report.docx", "checkslabel": "Checks for report.docx", "hasbroken": true, "brokencount": 1,
+        "brokenlabel": "Broken items in report.docx", "brokenheading": "1 broken item",
+        "brokenshown": [{"name": "graph1.png", "reason": "Not in the file: on your computer", "place": null,
+            "jump": true, "anchor": "broken-1"}],
+        "brokenmore": [], "hasbrokenmore": false, "brokenmorelabel": "", "brokenhelp": "https://aka.ms/file_embedding"
+    }
+}}
+<div class="local-submissioncheck-checks mb-3" role="region" aria-label="{{checkslabel}}">
+    {{#hasbroken}}
+    <div class="local-submissioncheck-broken mb-3" role="region" aria-label="{{brokenlabel}}" data-region="local-submissioncheck-broken">
+        <h4 class="local-submissioncheck-brokenheading">{{#pix}}i/warning, core{{/pix}}{{brokenheading}}</h4>
+        <p class="local-submissioncheck-brokensub">{{#str}}brokensub, local_submissioncheck{{/str}}</p>
+        <ul class="local-submissioncheck-brokenlist">
+            {{#brokenshown}}{{> local_submissioncheck/broken_item }}{{/brokenshown}}
+        </ul>
+        {{#hasbrokenmore}}
+        <details class="local-submissioncheck-brokenmore">
+            <summary>{{brokenmorelabel}}</summary>
+            <ul class="local-submissioncheck-brokenlist">
+                {{#brokenmore}}{{> local_submissioncheck/broken_item }}{{/brokenmore}}
+            </ul>
+        </details>
+        {{/hasbrokenmore}}
+        {{#brokenhelp}}<p class="local-submissioncheck-brokenhelp"><a href="{{brokenhelp}}" target="_blank">{{#str}}brokenhelp, local_submissioncheck{{/str}}</a></p>{{/brokenhelp}}
+    </div>
+    {{/hasbroken}}
+    {{#checksunavailable}}
+    <p class="alert alert-info mb-3">{{checksunavailablemessage}}</p>
+    {{/checksunavailable}}
+    {{#incomplete}}
+    <p class="text-muted mb-3">{{incompletemessage}}</p>
+    {{/incomplete}}
+    <div class="local-submissioncheck-rightfile mb-3">
+        <h4 class="h6 mb-1">{{#str}}rightfile, local_submissioncheck{{/str}}</h4>
+        <ul class="mb-0">
+            <li>{{#str}}rightfile_assessment, local_submissioncheck{{/str}}</li>
+            <li>{{#str}}rightfile_latest, local_submissioncheck{{/str}}</li>
+            <li>{{#str}}rightfile_complete, local_submissioncheck{{/str}}</li>
+        </ul>
+    </div>
+</div>

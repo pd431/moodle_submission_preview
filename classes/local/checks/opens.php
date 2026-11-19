@@ -32,6 +32,10 @@ use local_submissioncheck\local\inspected_file;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class opens extends check {
+    /** Names of kinds with a recognisable signature: content that matches no known kind under one of these is damage. */
+    public const SIGNED_EXTENSIONS = ['doc', 'docx', 'docm', 'dot', 'dotx', 'dotm', 'ppt', 'pptx', 'pptm', 'pps', 'ppsx', 'xls',
+        'xlsx', 'xlsm', 'odt', 'odp', 'ods', 'pdf', 'rtf', 'jpg', 'jpeg', 'png', 'gif'];
+
     /** Main part each kind of Office package must contain. */
     public const MAIN_PARTS = [
         'word' => 'word/document.xml',
@@ -54,7 +58,7 @@ class opens extends check {
      * @return int
      */
     public function get_version(): int {
-        return 1;
+        return 2;
     }
 
     /**
@@ -68,7 +72,8 @@ class opens extends check {
             inspected_file::TYPE_PDF, inspected_file::TYPE_OOXML, inspected_file::TYPE_ODF, inspected_file::TYPE_ZIP,
             inspected_file::TYPE_IWORK, inspected_file::TYPE_OLE, inspected_file::TYPE_JPEG, inspected_file::TYPE_PNG,
             inspected_file::TYPE_GIF,
-        ], true);
+        ], true) || ($file->get_type() === inspected_file::TYPE_UNKNOWN
+            && in_array($file->get_extension(), self::SIGNED_EXTENSIONS, true));
     }
 
     /**
@@ -127,6 +132,9 @@ class opens extends check {
                     return true;
                 }
                 return $file->zip_is_consistent() && in_array('content.xml', $file->get_entries() ?? [], true);
+            case inspected_file::TYPE_UNKNOWN:
+                // Named as a kind with a signature, but nothing in it is recognisable.
+                return false;
             default:
                 return !$file->is_inspectable() || $file->zip_is_consistent();
         }

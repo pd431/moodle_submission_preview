@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_submissioncheck';
-$plugin->version = 2026111700;
+$plugin->version = 2026111707;
 $plugin->requires = 2024100700;
 $plugin->supported = [405, 503];
 $plugin->maturity = MATURITY_BETA;
-$plugin->release = '0.1.0-beta1';
+$plugin->release = '0.1.0-beta8';

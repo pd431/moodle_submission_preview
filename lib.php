@@ -25,7 +25,8 @@
 use local_submissioncheck\local\activation;
 
 /**
- * Add the "Submission checks" setting to assignment and quiz settings.
+ * Add the "Submission check and preview" setting to assignment and quiz settings: in an assignment directly under
+ * "Require that students accept the submission statement", in a quiz at the end of "Question behaviour".
  *
  * @param moodleform_mod $formwrapper
  * @param MoodleQuickForm $mform
@@ -35,21 +36,46 @@ function local_submissioncheck_coursemodule_standard_elements($formwrapper, $mfo
     if (!in_array($modname, activation::MODULES, true)) {
         return;
     }
-    $mform->addElement('header', 'local_submissioncheck_header', get_string('settingsheader', 'local_submissioncheck'));
-    $mform->addElement('select', 'submissioncheck_mode', get_string('mode', 'local_submissioncheck'), [
-        activation::MODE_AUTO => get_string('mode_auto', 'local_submissioncheck'),
+    $cmid = (int) ($formwrapper->get_current()->coursemodule ?? 0);
+    $select = $mform->createElement('select', 'submissioncheck_mode', get_string('mode', 'local_submissioncheck'), [
+        activation::MODE_AUTO => activation::follow_label($cmid),
         activation::MODE_ON => get_string('mode_on', 'local_submissioncheck'),
         activation::MODE_OFF => get_string('mode_off', 'local_submissioncheck'),
     ]);
-    $mform->addHelpButton('submissioncheck_mode', 'mode', 'local_submissioncheck');
-
-    $cmid = (int) ($formwrapper->get_current()->coursemodule ?? 0);
-    $mform->setDefault('submissioncheck_mode', $cmid ? activation::get_mode($cmid) : activation::MODE_AUTO);
-    if ($cmid) {
-        $mform->addElement('static', 'submissioncheck_status', '', activation::describe($cmid));
-        // Staff should notice that checks are on without opening the section.
-        $mform->setExpanded('local_submissioncheck_header', activation::is_switched_on($formwrapper->get_coursemodule()));
+    $before = local_submissioncheck_setting_position($mform, $modname);
+    if ($before !== null) {
+        $mform->insertElementBefore($select, $before);
+    } else {
+        $mform->addElement($select);
     }
+    $mform->addHelpButton('submissioncheck_mode', 'mode', 'local_submissioncheck');
+    $mform->setDefault('submissioncheck_mode', $cmid ? activation::get_mode($cmid) : activation::MODE_AUTO);
+}
+
+/**
+ * The element the setting goes before: in an assignment, whatever follows the submission statement setting; in a
+ * quiz, the section after "Question behaviour". Null when the form does not have it (the setting then goes last).
+ *
+ * @param MoodleQuickForm $mform
+ * @param string $modname
+ * @return string|null
+ */
+function local_submissioncheck_setting_position(MoodleQuickForm $mform, string $modname): ?string {
+    if ($modname === 'quiz') {
+        return $mform->elementExists('reviewoptionshdr') ? 'reviewoptionshdr' : null;
+    }
+    if (!$mform->elementExists('requiresubmissionstatement')) {
+        return $mform->elementExists('groupsubmissionsettings') ? 'groupsubmissionsettings' : null;
+    }
+    $index = $mform->_elementIndex['requiresubmissionstatement'];
+    $count = count($mform->_elements);
+    for ($i = $index + 1; $i < $count; $i++) {
+        $name = $mform->_elements[$i]->getName();
+        if ($name !== null && $name !== '' && $mform->elementExists($name)) {
+            return $name;
+        }
+    }
+    return null;
 }
 
 /**

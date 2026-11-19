@@ -37,6 +37,47 @@ class confirmation {
     /** @var int A newer upload replaced it. */
     public const REPLACED = 3;
 
+    /** Seconds between arming an answer that has problems and confirming it. */
+    public const ARM_SECONDS = 1.0;
+
+    /**
+     * Arm the answer for an upload that has problems: the student pressed "Yes" once.
+     *
+     * @param \stdClass $record
+     */
+    public static function arm(\stdClass $record): void {
+        global $SESSION;
+        $SESSION->local_submissioncheck_armed = [(int) $record->id => microtime(true)];
+    }
+
+    /**
+     * Whether an answer may be confirmed now: always without problems; with problems, only on a second press
+     * (acknowledged) at least ARM_SECONDS after the first.
+     *
+     * @param \stdClass $record
+     * @param bool $acknowledged The second press says the student accepts the problems.
+     * @return bool
+     */
+    public static function is_armed(\stdClass $record, bool $acknowledged): bool {
+        global $SESSION;
+        if (empty($record->haswarnings)) {
+            return true;
+        }
+        $armed = $SESSION->local_submissioncheck_armed[(int) $record->id] ?? null;
+        return $acknowledged && $armed !== null && microtime(true) - $armed >= self::ARM_SECONDS;
+    }
+
+    /**
+     * Whether the answer for an upload is armed now (pressed once, waiting for the second press).
+     *
+     * @param \stdClass $record
+     * @return bool
+     */
+    public static function is_armed_now(\stdClass $record): bool {
+        global $SESSION;
+        return isset($SESSION->local_submissioncheck_armed[(int) $record->id]);
+    }
+
     /**
      * Length of the window in seconds.
      *

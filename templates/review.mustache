@@ -1,0 +1,95 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_submissioncheck/review
+
+    The review page for an assignment upload: when it was submitted and the window, the disclaimer, a tab per file
+    (when there are several) with what we found and the facts beside the preview, and the two answers in a bar fixed
+    to the bottom of the window. Without JavaScript every file shows, one after another.
+
+    Example context (json):
+    {
+        "uniqid": "local-submissioncheck-1", "cmid": 5, "headinghtml": "Check your submission to <strong>Essay 1</strong>",
+        "submitted": "You submitted this file at 11:58.", "awaiting": true, "multiple": false, "viewed": "",
+        "disclaimer": "Previews are approximate.", "files": [],
+        "confirmby": "Confirm by 12:13",
+        "actions": {"url": "#", "sesskey": "x", "uploadid": 1, "confirmlabel": "Yes", "backlabel": "No",
+            "backdisabled": false, "backreason": ""}
+    }
+}}
+<section id="{{uniqid}}" class="local-submissioncheck local-submissioncheck-review" aria-labelledby="{{uniqid}}-heading"
+         data-region="local-submissioncheck-review" data-cmid="{{cmid}}" {{#pending}}data-pending="1"{{/pending}}>
+    <h2 id="{{uniqid}}-heading" class="h3 mb-1">{{{headinghtml}}}</h2>
+    {{#continuing}}
+    <p class="alert alert-primary"><strong>{{continuingmessage}}</strong></p>
+    {{/continuing}}
+    <p class="local-submissioncheck-subline">{{submitted}} {{disclaimer}}</p>
+    {{#statusmessage}}<p class="alert alert-success">{{statusmessage}}</p>{{/statusmessage}}
+    {{#latemessage}}<p class="alert alert-warning">{{latemessage}}</p>{{/latemessage}}
+
+    {{#multiple}}
+    <div class="local-submissioncheck-tabs" role="tablist" aria-label="{{#str}}reviewfiles, local_submissioncheck{{/str}}"
+         data-region="local-submissioncheck-tabs">
+        {{#files}}
+        <button type="button" class="local-submissioncheck-tab {{#tabred}}local-submissioncheck-tab-broken{{/tabred}}"
+                role="tab" id="{{uniqid}}-tab-{{index}}" aria-controls="{{uniqid}}-panel-{{index}}" data-filename="{{name}}"
+                aria-selected="{{#first}}true{{/first}}{{^first}}false{{/first}}" {{^first}}tabindex="-1"{{/first}}>
+            {{#tabred}}{{#pix}}i/warning, core{{/pix}}{{/tabred}}
+            <span class="local-submissioncheck-tabname">{{name}}</span>
+            {{#tabstatus}}<span class="local-submissioncheck-tabstatus">{{tabstatus}}</span>{{/tabstatus}}
+        </button>
+        {{/files}}
+    </div>
+    {{/multiple}}
+
+    {{#files}}
+    <div class="local-submissioncheck-file" data-region="local-submissioncheck-file"
+         {{#multiple}}role="tabpanel" id="{{uniqid}}-panel-{{index}}" aria-labelledby="{{uniqid}}-tab-{{index}}" tabindex="0"{{/multiple}}>
+        <div class="local-submissioncheck-side">
+            {{> local_submissioncheck/file_checks }}
+            {{> local_submissioncheck/file_facts }}
+        </div>
+        <div class="local-submissioncheck-main">
+            <h3 class="h5 local-submissioncheck-steponly">{{#str}}reviewlook, local_submissioncheck{{/str}}</h3>
+            {{> local_submissioncheck/file_preview }}
+        </div>
+    </div>
+    {{/files}}
+
+    {{#actions}}
+    <div class="local-submissioncheck-bar" data-region="local-submissioncheck-bar">
+        <p class="local-submissioncheck-barinfo mb-0">
+            <strong>{{confirmby}}</strong>
+            {{#multiple}}<span class="local-submissioncheck-viewed" data-region="local-submissioncheck-viewed">{{viewed}}</span>{{/multiple}}
+        </p>
+        <form method="post" action="{{url}}" class="local-submissioncheck-actions d-flex flex-wrap align-items-start"
+              data-region="local-submissioncheck-answer" {{#needsack}}data-needsack="1"{{/needsack}}
+              data-armedlabel="{{armedlabel}}">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <input type="hidden" name="uploadid" value="{{uploadid}}">
+            <input type="hidden" name="acknowledge" value="{{#armed}}1{{/armed}}{{^armed}}0{{/armed}}" data-region="local-submissioncheck-ack">
+            <button type="submit" name="action" value="confirm" data-region="local-submissioncheck-confirm"
+                    class="btn btn-primary {{#armed}}local-submissioncheck-armed{{/armed}}" data-label="{{confirmlabel}}"
+                    {{#armed}}data-armed="1"{{/armed}}>{{#armed}}{{armedlabel}}{{/armed}}{{^armed}}{{confirmlabel}}{{/armed}}</button>
+            <button type="submit" name="action" value="back" class="btn btn-secondary"
+                {{#backdisabled}}disabled aria-describedby="{{uniqid}}-backreason"{{/backdisabled}}>{{backlabel}}</button>
+        </form>
+        <p class="sr-only visually-hidden" aria-live="polite" data-region="local-submissioncheck-announce"></p>
+        {{#backdisabled}}<p id="{{uniqid}}-backreason" class="local-submissioncheck-backreason text-muted mb-0">{{backreason}}</p>{{/backdisabled}}
+    </div>
+    {{/actions}}
+</section>

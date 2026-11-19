@@ -1,0 +1,29 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_submissioncheck/not_shown
+
+    A drawing the browser preview cannot draw (drawn shapes, icons, charts, SmartArt) that the marker will see in Word:
+    a light grey dashed box at the drawing's size with a short note. Neutral on purpose: it is not a warning. Styles
+    are inline because it is drawn inside a sandboxed preview that loads no stylesheet.
+
+    Example context (json):
+    {"message": "Drawing not shown in this preview. Your marker will see it.", "width": "96px", "height": "89px"}
+}}
+<div class="local-submissioncheck-notshown" data-region="local-submissioncheck-notshown" style="box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; width: {{#width}}{{width}}{{/width}}{{^width}}100%{{/width}}; max-width: 100%; min-width: 9em; min-height: {{#height}}{{height}}{{/height}}{{^height}}60px{{/height}}; margin: 4px 0; padding: 8px; border: 2px dashed #8a9199; background: #f1f3f5; color: #3d454d; font: 13px/1.35 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; text-align: center; text-indent: 0;">
+    <span>{{message}}</span>
+</div>

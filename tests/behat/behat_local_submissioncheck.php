@@ -51,6 +51,15 @@ class behat_local_submissioncheck extends behat_base {
             new behat_component_named_selector('Checks', [
                 ".//*[@role='region' and contains(@class, 'local-submissioncheck-checks') and @aria-label=%locator%]",
             ]),
+            new behat_component_named_selector('Broken', [
+                ".//*[@role='region' and contains(@class, 'local-submissioncheck-broken') and @aria-label=%locator%]",
+            ]),
+            new behat_component_named_selector('Facts', [
+                ".//*[@role='region' and contains(@class, 'local-submissioncheck-facts') and @aria-label=%locator%]",
+            ]),
+            new behat_component_named_selector('File tab', [
+                ".//*[@role='tab' and @data-filename=%locator%]",
+            ]),
         ];
     }
 
@@ -79,6 +88,127 @@ class behat_local_submissioncheck extends behat_base {
      */
     public function the_service_is_unavailable() {
         testing::set('service_down', true);
+    }
+
+    /**
+     * A preview made on the server (shown in a frame) contains some text. Opens the frame's page in this session.
+     *
+     * @Then /^the preview of "(?P<file>[^"]*)" should show "(?P<text>[^"]*)"$/
+     * @param string $filename
+     * @param string $text
+     */
+    public function the_preview_should_show(string $filename, string $text) {
+        $region = $this->find('local_submissioncheck > Preview', get_string('previewof', 'local_submissioncheck', $filename));
+        $frame = $region->find('css', 'iframe[data-region="local-submissioncheck-frame"]');
+        if (!$frame) {
+            throw new ExpectationException("No preview frame for $filename", $this->getSession());
+        }
+        $this->getSession()->visit($this->locate_path($frame->getAttribute('src')));
+        $this->execute('behat_general::assert_page_contains_text', [$text]);
+    }
+
+    /**
+     * A Word document drawn in the browser contains some text.
+     *
+     * @Then /^the Word preview of "(?P<file>[^"]*)" should show "(?P<text>[^"]*)"$/
+     * @param string $filename
+     * @param string $text
+     */
+    public function the_word_preview_should_show(string $filename, string $text) {
+        $label = get_string('previewof', 'local_submissioncheck', $filename);
+        $this->find('local_submissioncheck > Preview', $label);
+        $script = 'return (function(label, text) {' .
+            'var regions = document.querySelectorAll(\'[data-region="local-submissioncheck-docx"]\');' .
+            'for (var i = 0; i < regions.length; i++) {' .
+            '  var frame = regions[i].dataset.label === label ? regions[i].querySelector("iframe") : null;' .
+            '  if (frame && regions[i].dataset.rendered && frame.contentDocument.body.textContent.indexOf(text) !== -1) {' .
+            '    return true;' .
+            '  }' .
+            '}' .
+            'return false;' .
+            '})(' . json_encode($label) . ', ' . json_encode($text) . ');';
+        $this->spin(function () use ($script) {
+            return (bool) $this->evaluate_script($script);
+        }, [], behat_base::get_extended_timeout(), new ExpectationException(
+            "The Word preview of $filename does not show \"$text\"",
+            $this->getSession()
+        ));
+    }
+
+    /**
+     * A Word document drawn in the browser does not contain some text.
+     *
+     * @Then /^the Word preview of "(?P<file>[^"]*)" should not show "(?P<text>[^"]*)"$/
+     * @param string $filename
+     * @param string $text
+     */
+    public function the_word_preview_should_not_show(string $filename, string $text) {
+        $this->wait_for_word_preview($filename);
+        $found = $this->evaluate_script($this->word_preview_script(
+            $filename,
+            'return body.textContent.indexOf(' . json_encode($text) . ') !== -1;'
+        ));
+        if ($found) {
+            throw new ExpectationException("The Word preview of $filename shows \"$text\"", $this->getSession());
+        }
+    }
+
+    /**
+     * A Word document drawn in the browser has a number of loaded pictures.
+     *
+     * @Then /^the Word preview of "(?P<file>[^"]*)" should show (?P<count>\d+) pictures?$/
+     * @param string $filename
+     * @param int $count
+     */
+    public function the_word_preview_should_show_pictures(string $filename, int $count) {
+        $this->wait_for_word_preview($filename);
+        $script = $this->word_preview_script(
+            $filename,
+            'return Array.prototype.filter.call(body.querySelectorAll("img"), function(i) { return i.naturalWidth > 0; }).length;'
+        );
+        $this->spin(function () use ($script, $count) {
+            return (int) $this->evaluate_script($script) === $count;
+        }, [], behat_base::get_extended_timeout(), new ExpectationException(
+            "The Word preview of $filename does not show $count pictures",
+            $this->getSession()
+        ));
+    }
+
+    /**
+     * Wait until a Word preview has been drawn.
+     *
+     * @param string $filename
+     */
+    protected function wait_for_word_preview(string $filename): void {
+        $script = $this->word_preview_script($filename, 'return true;');
+        $this->spin(function () use ($script) {
+            return (bool) $this->evaluate_script($script);
+        }, [], behat_base::get_extended_timeout(), new ExpectationException(
+            "The Word preview of $filename was not drawn",
+            $this->getSession()
+        ));
+    }
+
+    /**
+     * Script that runs some code on the body of a drawn Word preview, or returns false when it is not drawn yet.
+     *
+     * @param string $filename
+     * @param string $code JavaScript using "body".
+     * @return string
+     */
+    protected function word_preview_script(string $filename, string $code): string {
+        $label = get_string('previewof', 'local_submissioncheck', $filename);
+        return 'return (function(label) {' .
+            'var regions = document.querySelectorAll(\'[data-region="local-submissioncheck-docx"]\');' .
+            'for (var i = 0; i < regions.length; i++) {' .
+            '  var frame = regions[i].dataset.label === label ? regions[i].querySelector("iframe") : null;' .
+            '  if (frame && regions[i].dataset.rendered) {' .
+            '    var body = frame.contentDocument.body;' .
+            '    return (function(body) {' . $code . '})(body);' .
+            '  }' .
+            '}' .
+            'return false;' .
+            '})(' . json_encode($label) . ');';
     }
 
     /**

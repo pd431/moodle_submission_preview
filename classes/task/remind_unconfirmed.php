@@ -95,7 +95,7 @@ class remind_unconfirmed extends \core\task\scheduled_task {
         $message->fullmessagehtml = '';
         $message->smallmessage = $message->subject;
         $message->notification = 1;
-        $message->contexturl = assign_adapter::view_url($cm->id)->out(false);
+        $message->contexturl = assign_adapter::review_url($cm->id)->out(false);
         $message->contexturlname = get_string('reminderlink', 'local_submissioncheck');
         message_send($message);
     }

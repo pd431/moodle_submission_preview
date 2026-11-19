@@ -30,6 +30,10 @@ $callbacks = [
         'callback' => [\local_submissioncheck\hook_callbacks::class, 'after_main_region'],
     ],
     [
+        'hook' => \core\hook\output\before_http_headers::class,
+        'callback' => [\local_submissioncheck\hook_callbacks::class, 'before_http_headers'],
+    ],
+    [
         'hook' => \mod_quiz\hook\attempt_state_changed::class,
         'callback' => [\local_submissioncheck\hook_callbacks::class, 'quiz_attempt_state_changed'],
     ],

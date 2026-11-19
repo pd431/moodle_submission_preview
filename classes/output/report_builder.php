@@ -16,7 +16,10 @@
 
 namespace local_submissioncheck\output;
 
+use local_submissioncheck\local\file_facts;
+use local_submissioncheck\local\checks\opens;
 use local_submissioncheck\local\file_result;
+use local_submissioncheck\local\html_preview;
 use local_submissioncheck\local\preview;
 use local_submissioncheck\local\result_store;
 
@@ -28,6 +31,9 @@ use local_submissioncheck\local\result_store;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report_builder {
+    /** Broken items listed before "and N more". */
+    public const BROKEN_SHOWN = 5;
+
     /**
      * Template data for a list of files.
      *
@@ -70,56 +76,151 @@ class report_builder {
         string $unavailablekey
     ): array {
         $name = $file->get_filename();
-        $findings = [];
+        $broken = [];
+        $targets = [];
+        $mediahelp = false;
+        // Items can be jumped to where the preview marks them: a Word document drawn in the browser (boxes and links),
+        // or the boxes under each slide of a text-only preview.
+        $drawnword = $status['kind'] === preview::KIND_DOCX;
         foreach ($result->findings as $finding) {
-            $findings[] = [
-                'message' => $finding->get_message(),
-                'items' => array_map(function ($item) {
-                    return ['name' => $item];
-                }, $finding->items),
-                'hasitems' => !empty($finding->items),
-            ];
+            $items = $finding->broken_items();
+            if ($items === null) {
+                $broken[] = ['name' => $finding->get_message(), 'reason' => null, 'place' => null, 'jump' => false,
+                    'anchor' => null];
+                continue;
+            }
+            $mediahelp = true;
+            foreach ($items as $item) {
+                $islink = $finding->code === 'brokenlink';
+                if ($islink && $item['target'] !== null) {
+                    $targets[$item['target']] = $item['name'];
+                }
+                $broken[] = $item + [
+                    'jump' => $drawnword || ($status['textonly'] && $finding->code === 'linkedmedia'),
+                    'anchor' => html_preview::anchor($item['name']),
+                ];
+            }
         }
+        $count = count($broken);
+        $codes = array_column(array_map(function ($finding) {
+            return $finding->to_array();
+        }, $result->findings), 'code');
+        $frame = self::frame($file, $status, $codes);
         $url = new \moodle_url('/local/submissioncheck/preview.php', ['fileid' => $file->get_id()] + $urlparams);
         return [
             'name' => $name,
             'checkslabel' => get_string('checksfor', 'local_submissioncheck', $name),
+            'factslabel' => get_string('factabout', 'local_submissioncheck', $name),
+            'facts' => file_facts::get($file),
             'previewlabel' => get_string('previewof', 'local_submissioncheck', $name),
-            'ok' => !$result->has_warnings() && !$result->is_unavailable(),
-            'okmessage' => get_string('noproblems', 'local_submissioncheck', $name),
-            'findings' => $findings,
-            'hasfindings' => !empty($findings),
+            'hasbroken' => $count > 0,
+            'brokencount' => $count,
+            'brokenlabel' => get_string('brokenlabel', 'local_submissioncheck', $name),
+            'brokenheading' => $count === 1 ? get_string('brokenheading_one', 'local_submissioncheck')
+                : get_string('brokenheading', 'local_submissioncheck', $count),
+            'brokenshown' => array_slice($broken, 0, self::BROKEN_SHOWN),
+            'brokenmore' => array_slice($broken, self::BROKEN_SHOWN),
+            'hasbrokenmore' => $count > self::BROKEN_SHOWN,
+            'brokenmorelabel' => get_string('brokenmore', 'local_submissioncheck', $count - self::BROKEN_SHOWN),
+            'brokenhelp' => $mediahelp ? (string) get_config('local_submissioncheck', 'helplink') : '',
+            'brokentargets' => json_encode($targets),
             'checksunavailable' => $result->is_unavailable(),
             'checksunavailablemessage' => get_string('checksunavailable_' . $unavailablekey, 'local_submissioncheck', $name),
             'incomplete' => !$result->complete && !$result->is_unavailable(),
             'incompletemessage' => get_string('checksincomplete', 'local_submissioncheck', $name),
-            'previewready' => $status['status'] === preview::READY,
-            'previewpdf' => $status['kind'] === 'pdf',
-            'previewimage' => $status['kind'] === 'image',
+            'frame' => $frame,
+            'previewready' => $frame === 'drawn',
+            'previewpdf' => $status['kind'] === preview::KIND_PDF,
+            'previewimage' => $status['kind'] === preview::KIND_IMAGE,
+            'previewvideo' => $status['kind'] === preview::KIND_VIDEO,
+            'previewaudio' => $status['kind'] === preview::KIND_AUDIO,
+            'previewdocx' => $status['kind'] === preview::KIND_DOCX,
+            'previewhtml' => $status['kind'] === preview::KIND_HTML,
+            'previewtextonly' => $status['textonly'],
+            'previewtextonlymessage' => get_string('previewtextonly', 'local_submissioncheck'),
+            'previewloadingmessage' => get_string('previewloading', 'local_submissioncheck', $name),
+            'previewdrawfailedmessage' => get_string('previewdrawfailed', 'local_submissioncheck'),
             'previewurl' => $url->out(false),
             'openpreview' => get_string('openpreview', 'local_submissioncheck', $name),
-            'previewpending' => $status['status'] === preview::PENDING,
+            'previewpending' => $frame === 'pending',
             'previewpendingmessage' => get_string('previewpending', 'local_submissioncheck', $name),
-            'previewunsupported' => $status['status'] === preview::UNSUPPORTED,
-            'previewunsupportedmessage' => get_string('previewunsupported', 'local_submissioncheck', $name),
-            'previewunavailable' => $status['status'] === preview::UNAVAILABLE,
-            'previewunavailablemessage' => get_string('previewunavailable_' . $unavailablekey, 'local_submissioncheck'),
+            'previewtoolarge' => $frame === 'toolarge',
+            'previewtoolargemessage' => get_string('previewtoolarge', 'local_submissioncheck', $name),
+            'frameunreadable' => $frame === 'unreadable',
+            'frameprotected' => $frame === 'protected',
+            'framenotype' => $frame === 'notype',
         ];
     }
 
     /**
-     * The approximate-preview notice naming the module and assessment.
+     * What the preview frame shows for a file: its preview, or why there is none. A file the checks found cannot be
+     * opened (or is password protected) says so even when a preview could be attempted.
+     *
+     * @param \stored_file $file
+     * @param array $status From preview::get_status().
+     * @param string[] $codes Finding codes for the file.
+     * @return string drawn, pending, toolarge, unreadable, protected or notype
+     */
+    public static function frame(\stored_file $file, array $status, array $codes): string {
+        if (in_array('passwordprotected', $codes, true)) {
+            return 'protected';
+        }
+        $extension = \core_text::strtolower(pathinfo($file->get_filename(), PATHINFO_EXTENSION));
+        if (in_array('cannotopen', $codes, true) && in_array($extension, opens::SIGNED_EXTENSIONS, true)) {
+            return 'unreadable';
+        }
+        switch ($status['status']) {
+            case preview::READY:
+                return 'drawn';
+            case preview::PENDING:
+                return 'pending';
+            case preview::TOO_LARGE:
+                return 'toolarge';
+        }
+        return 'notype';
+    }
+
+    /**
+     * The label of the second press when going ahead with problems: how many broken items, or that a file can't be
+     * read.
+     *
+     * @param array $files Per-file data from files().
+     * @param string $key String key: confirmagain (assignment) or quizconfirmagain.
+     * @return string
+     */
+    public static function confirm_again_label(array $files, string $key): string {
+        foreach ($files as $file) {
+            if (in_array($file['frame'], ['unreadable', 'protected'], true)) {
+                return get_string($key . '_unreadable', 'local_submissioncheck');
+            }
+        }
+        $count = array_sum(array_column($files, 'brokencount'));
+        return $count === 1 ? get_string($key . '_one', 'local_submissioncheck')
+            : get_string($key, 'local_submissioncheck', $count);
+    }
+
+    /**
+     * The review heading naming the assessment and the module, both in bold. HTML.
      *
      * @param \stdClass $course
      * @param \cm_info $cm
      * @return string
      */
-    public static function disclaimer(\stdClass $course, \cm_info $cm): string {
+    public static function heading(\stdClass $course, \cm_info $cm): string {
         $context = \context_course::instance($course->id);
-        return get_string('disclaimer', 'local_submissioncheck', (object) [
-            'modulecode' => format_string($course->shortname, true, ['context' => $context]),
-            'assessment' => format_string($cm->name, true, ['context' => $cm->context]),
+        return get_string('reviewheading', 'local_submissioncheck', (object) [
+            'assessment' => \html_writer::tag('strong', s(format_string($cm->name, true, ['context' => $cm->context]))),
+            'module' => \html_writer::tag('strong', s(format_string($course->shortname, true, ['context' => $context]))),
         ]);
+    }
+
+    /**
+     * The short note that previews are approximate.
+     *
+     * @return string
+     */
+    public static function disclaimer(): string {
+        return get_string('disclaimer', 'local_submissioncheck');
     }
 
     /**

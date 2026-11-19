@@ -56,6 +56,19 @@ if ($action === 'back') {
     redirect(assign_adapter::edit_url($cm->id));
 }
 
+$acknowledged = optional_param('acknowledge', 0, PARAM_BOOL);
+if ($action === 'arm' || ($action === 'confirm' && !confirmation::is_armed($record, $acknowledged))) {
+    // With problems, the first press only arms the answer; the second, a second or more later, confirms.
+    confirmation::arm($record);
+    if (optional_param('ajax', 0, PARAM_BOOL)) {
+        \core\session\manager::write_close();
+        header('Content-Type: application/json');
+        echo json_encode(['armed' => true]);
+        die;
+    }
+    redirect(new moodle_url(assign_adapter::review_url($cm->id), ['armed' => 1]));
+}
+
 if ($action === 'confirm') {
     if (!confirmation::confirm($record, (int) $USER->id)) {
         redirect(
