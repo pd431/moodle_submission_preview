@@ -290,10 +290,14 @@
 }
 
 /* Asking twice: for one second the button looks disabled and a bar fills across it; then it turns red. */
+/* The disabled look is the progress bar: the button turns grey and fills from left to right over the second. */
+.btn.local-submissioncheck-waiting,
 .local-submissioncheck-waiting {
     position: relative;
     overflow: hidden;
-    opacity: 0.65;
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
     cursor: progress;
 }
 
@@ -301,10 +305,10 @@
     content: "";
     position: absolute;
     left: 0;
+    top: 0;
     bottom: 0;
-    height: 4px;
     width: 0;
-    background: currentColor;
+    background: rgba(255, 255, 255, 0.35);
     animation: local-submissioncheck-fill 1s linear forwards;
 }
 
