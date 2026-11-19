@@ -25,11 +25,12 @@ Feature: Students review each submitted file on its own page before confirming
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
     Then I should see "Check your submission"
-    And I should see "You submitted this file at"
+    And I should see "This stays your submission time unless you replace the file."
     And I should see "Confirm by"
     And "Yes, this is the file I intended to submit" "button" should exist
     And "No, wrong file: take me back" "button" should exist
-    And I should see "No problems found in essay.docx"
+    And I should see "Check this is the right file"
+    And I should not see "broken item"
     And I should see "About this file"
     And I should see "Word document"
     And "Preview of essay.docx" "local_submissioncheck > Preview" should exist
@@ -40,10 +41,10 @@ Feature: Students review each submitted file on its own page before confirming
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "No problems found" in the "essay.docx" "local_submissioncheck > File tab"
-    And I should see "1 warning" in the "linked-media.pptx" "local_submissioncheck > File tab"
+    Then I should not see "broken" in the "essay.docx" "local_submissioncheck > File tab"
+    And I should see "2 broken" in the "linked-media.pptx" "local_submissioncheck > File tab"
     And I click on "linked-media.pptx" "local_submissioncheck > File tab"
-    And I should see "graph1.png (slide 1)"
+    And I should see "Not in the file: on your computer · slide 1"
     And I should see "Slides"
     And "Preview of linked-media.pptx" "local_submissioncheck > Preview" should be visible
     And I should see "Viewed 2 of 2 files"
@@ -101,7 +102,8 @@ Feature: Students review each submitted file on its own page before confirming
     And I press "Yes, this is the file I intended to submit"
     Then I should see "You confirmed this file."
     And I click on "See the check report" "link"
-    And I should see "No problems found in essay.docx"
+    And I should see "Check this is the right file"
+    And I should not see "broken item"
     And "Yes, this is the file I intended to submit" "button" should not exist
 
   Scenario: Tabs work with the keyboard

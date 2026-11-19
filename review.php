@@ -44,7 +44,7 @@ if (isset($PAGE->activityheader)) {
     $PAGE->activityheader->set_description('');
 }
 
-$data = review_page::data($cm, (int) $USER->id);
+$data = review_page::data($cm, (int) $USER->id, optional_param('armed', 0, PARAM_BOOL));
 if (!$data) {
     redirect(assign_adapter::view_url($cm->id));
 }

@@ -32,11 +32,20 @@ class review_page {
      *
      * @param \cm_info $cm
      * @param int $userid
+     * @param bool $armed The page was opened after a first press of "Yes".
      * @return array|null
      */
-    public static function data(\cm_info $cm, int $userid): ?array {
+    public static function data(\cm_info $cm, int $userid, bool $armed = false): ?array {
         $data = assign_adapter::report($cm, $userid);
-        return $data ? self::from_report($data) : null;
+        if (!$data) {
+            return null;
+        }
+        $data = self::from_report($data);
+        if ($data['actions']) {
+            // Shown already armed when the server armed it (the first press without JavaScript).
+            $data['actions']['armed'] = $armed && $data['actions']['armednow'] && $data['actions']['needsack'];
+        }
+        return $data;
     }
 
     /**
@@ -47,20 +56,23 @@ class review_page {
      */
     public static function from_report(array $data): array {
         foreach ($data['files'] as $index => &$file) {
-            $warnings = count($file['findings']);
             $file['index'] = $index;
             $file['first'] = $index === 0;
-            $file['haswarnings'] = $warnings > 0;
-            if ($warnings) {
-                $file['tabstatus'] = $warnings === 1 ? get_string('tabwarnings_one', 'local_submissioncheck')
-                    : get_string('tabwarnings', 'local_submissioncheck', $warnings);
-            } else if (!empty($file['checksunavailable'])) {
-                $file['tabstatus'] = get_string('checksnotrun', 'local_submissioncheck');
+            // Only what is wrong gets a word on the tab; a healthy file shows its name alone.
+            $file['tabred'] = in_array($file['frame'], ['unreadable', 'protected'], true) || $file['hasbroken'];
+            if (in_array($file['frame'], ['unreadable', 'protected'], true)) {
+                $file['tabstatus'] = get_string('tabunreadable', 'local_submissioncheck');
+            } else if ($file['hasbroken']) {
+                $file['tabstatus'] = $file['brokencount'] === 1 ? get_string('tabbroken_one', 'local_submissioncheck')
+                    : get_string('tabbroken', 'local_submissioncheck', $file['brokencount']);
+            } else if ($file['frame'] === 'notype') {
+                $file['tabstatus'] = get_string('tabnopreview', 'local_submissioncheck');
             } else {
-                $file['tabstatus'] = get_string('noproblemsshort', 'local_submissioncheck');
+                $file['tabstatus'] = '';
             }
         }
         unset($file);
+        $data['armedlabel'] = report_builder::confirm_again_label($data['files'], 'confirmagain');
         $data['viewed'] = $data['multiple'] ? get_string(
             'viewedfiles',
             'local_submissioncheck',

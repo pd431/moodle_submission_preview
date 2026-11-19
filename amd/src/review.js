@@ -26,7 +26,8 @@ import Ajax from 'core/ajax';
 import Templates from 'core/templates';
 import Notification from 'core/notification';
 import {getString} from 'core/str';
-import {renderAll} from 'local_submissioncheck/preview';
+import {renderAll, enableJumps} from 'local_submissioncheck/preview';
+import {guard} from 'local_submissioncheck/doubleconfirm';
 
 /** How often to ask whether a preview is ready, in milliseconds. */
 const POLL_INTERVAL = 5000;
@@ -129,12 +130,48 @@ const setUpTabs = (review) => {
 };
 
 /**
+ * With problems, "Yes" asks twice: the first press arms it on the server (which also checks the wait), the second,
+ * a second or more later, confirms.
+ *
+ * @param {HTMLElement} review
+ */
+const setUpAnswer = (review) => {
+    const form = review.querySelector('[data-region="local-submissioncheck-answer"]');
+    if (!form || !form.dataset.needsack) {
+        return;
+    }
+    const button = form.querySelector('[data-region="local-submissioncheck-confirm"]');
+    const ack = form.querySelector('[data-region="local-submissioncheck-ack"]');
+    guard(button, {
+        armedLabel: form.dataset.armedlabel,
+        announce: review.querySelector('[data-region="local-submissioncheck-announce"]'),
+        onFirst: () => {
+            const body = new URLSearchParams({
+                sesskey: form.elements.sesskey.value,
+                uploadid: form.elements.uploadid.value,
+                action: 'arm',
+                ajax: '1',
+            });
+            fetch(form.action, {method: 'POST', credentials: 'same-origin', body: body}).catch(() => null);
+        },
+        onArmed: () => {
+            ack.value = '1';
+        },
+        onReset: () => {
+            ack.value = '0';
+        },
+    });
+};
+
+/**
  * Set up one rendering of the review content.
  *
  * @param {HTMLElement} review
  */
 const start = (review) => {
     setUpTabs(review);
+    enableJumps(review);
+    setUpAnswer(review);
     clearOfBar(review);
 };
 

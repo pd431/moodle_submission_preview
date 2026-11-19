@@ -23,7 +23,8 @@
 
 import Ajax from 'core/ajax';
 import Templates from 'core/templates';
-import {renderAll} from 'local_submissioncheck/preview';
+import {renderAll, enableJumps} from 'local_submissioncheck/preview';
+import {guard} from 'local_submissioncheck/doubleconfirm';
 import Notification from 'core/notification';
 
 /** How often to ask whether a preview is ready, in milliseconds. */
@@ -80,6 +81,7 @@ const initAttemptPage = (cmid, attemptid) => {
         container.className = 'local-submissioncheck-question';
         container.setAttribute('aria-live', 'polite');
         area.after(container);
+        enableJumps(container);
 
         let timer = null;
         const schedule = () => {
@@ -101,6 +103,7 @@ const initSummaryPage = (cmid, attemptid) => {
     const form = document.getElementById('frm-finishattempt');
     const container = document.createElement('div');
     container.className = 'local-submissioncheck-summary';
+    enableJumps(container);
     const anchor = form ? form.closest('.controls') || form : null;
     if (anchor) {
         anchor.before(container);
@@ -109,21 +112,22 @@ const initSummaryPage = (cmid, attemptid) => {
     }
 
     let needsAck = false;
+    let armedLabel = '';
     let acknowledged = false;
+    const announce = document.createElement('p');
+    announce.className = 'sr-only visually-hidden';
+    announce.setAttribute('aria-live', 'polite');
+    container.after(announce);
 
     const render = (count) => Ajax.call([{
         methodname: 'local_submissioncheck_get_quiz_summary',
         args: {cmid: cmid, attemptid: attemptid},
     }])[0].then((response) => {
-        const ticked = container.querySelector('[data-region="local-submissioncheck-ack"]')?.checked;
         needsAck = response.needsack;
+        armedLabel = response.armedlabel;
         // Replacing is synchronous in some Moodle versions and returns a promise in others.
         return Promise.resolve(Templates.replaceNodeContents(container, response.html, '')).then(() => {
             renderAll(container);
-            const box = container.querySelector('[data-region="local-submissioncheck-ack"]');
-            if (box && (ticked || acknowledged)) {
-                box.checked = true;
-            }
             if (response.pending && count < MAX_POLLS) {
                 window.setTimeout(() => render(count + 1), POLL_INTERVAL);
             }
@@ -131,32 +135,31 @@ const initSummaryPage = (cmid, attemptid) => {
         });
     }).catch(Notification.exception);
 
-    container.addEventListener('change', (e) => {
-        if (!e.target.matches('[data-region="local-submissioncheck-ack"]') || !e.target.checked || acknowledged) {
-            return;
-        }
-        acknowledged = true;
-        container.querySelector('[data-region="local-submissioncheck-ackrequired"]')?.classList.add('d-none');
-        Ajax.call([{
-            methodname: 'local_submissioncheck_acknowledge_quiz',
-            args: {cmid: cmid, attemptid: attemptid},
-        }])[0].catch(Notification.exception);
-    });
-
-    // Capture phase, so this runs before the quiz's own confirmation dialogue opens.
-    document.addEventListener('click', (e) => {
-        const button = e.target.closest('#frm-finishattempt [type="submit"]');
-        if (!button || !needsAck || acknowledged) {
-            return;
-        }
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        const message = container.querySelector('[data-region="local-submissioncheck-ackrequired"]');
-        if (message) {
-            message.classList.remove('d-none');
-        }
-        container.querySelector('[data-region="local-submissioncheck-ack"]')?.focus();
-    }, true);
+    // With problems, finishing asks twice; the second press records that the student read them, then lets the quiz
+    // carry on (its own confirmation dialogue follows).
+    const button = form ? form.querySelector('[type="submit"]') : null;
+    if (button) {
+        const options = {
+            active: () => needsAck && !acknowledged,
+            announce: announce,
+            onConfirm: () => {
+                if (acknowledged) {
+                    return true;
+                }
+                Ajax.call([{
+                    methodname: 'local_submissioncheck_acknowledge_quiz',
+                    args: {cmid: cmid, attemptid: attemptid},
+                }])[0].then(() => {
+                    acknowledged = true;
+                    button.click();
+                    return null;
+                }).catch(Notification.exception);
+                return false;
+            },
+        };
+        Object.defineProperty(options, 'armedLabel', {get: () => armedLabel});
+        guard(button, options);
+    }
 
     render(0);
 };

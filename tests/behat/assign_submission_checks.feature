@@ -26,10 +26,11 @@ Feature: Students check a preview of their assignment file straight after submit
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "You submitted this file at"
-    And I should see "Check this report thoroughly. You have 15 minutes to confirm this is the file you intended to submit. Unless you choose to resubmit, your recorded submission timestamp will remain"
-    And I should see "No problems found in essay.docx"
-    And I should see "This is an approximate preview of your document(s). Layout may be approximate. Use it to check this is what you intended to submit to RS101 Essay 1, and that it has all the content you expect, and the latest changes you made to it."
+    Then I should see "This stays your submission time unless you replace the file."
+    And I should see "Confirm by"
+    And I should see "Check this is the right file"
+    And I should not see "broken item"
+    And I should see "Previews are approximate."
     And "Preview of essay.docx" "local_submissioncheck > Preview" should exist
     And I should see "Confirm by"
     And I should see "About this file"
@@ -53,7 +54,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "The following files have been linked but not embedded in your file. A marker will not be able to see them. See https://aka.ms/file_embedding for solutions."
+    Then I should see "2 broken items"
     And I should see "graph1.png"
     And I should see "interview.mp4"
     And "Preview of linked-media.pptx" "local_submissioncheck > Preview" should exist
@@ -64,6 +65,8 @@ Feature: Students check a preview of their assignment file straight after submit
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to "File submissions" filemanager
     And I press "Save changes"
     When I press "Yes, this is the file I intended to submit"
+    And I wait "2" seconds
+    And I press "Click again to confirm with 2 broken items"
     Then I should see "You confirmed this file and read the warnings about it"
 
   Scenario: Wrong file takes the student back to replace it, and the new file starts a new window
@@ -77,8 +80,9 @@ Feature: Students check a preview of their assignment file straight after submit
     And I delete "empty.docx" from "File submissions" filemanager
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     And I press "Save changes"
-    And I should see "No problems found in essay.docx"
-    And I should see "You have 15 minutes to confirm"
+    And I should see "Check this is the right file"
+    And I should not see "broken item"
+    And I should see "Confirm by"
     And the submission check upload time for "student1" in "Essay 1" should be within the last "1" minutes
 
   Scenario: Going back without saving a new file leaves the original submission in place
@@ -109,7 +113,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I delete "essay.docx" from "File submissions" filemanager
     And I upload "local/submissioncheck/tests/fixtures/linked-image.docx" file to "File submissions" filemanager
     And I press "Save changes"
-    Then I should see "You have 15 minutes to confirm"
+    Then I should see "Confirm by"
 
   Scenario: Confirming does not lock the submission; resubmitting starts the flow again
     Given I am on the "Essay 1" "assign activity" page logged in as "student1"
@@ -121,7 +125,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I delete "essay.docx" from "File submissions" filemanager
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to "File submissions" filemanager
     And I press "Save changes"
-    Then I should see "You have 15 minutes to confirm"
+    Then I should see "Confirm by"
     And I should see "interview.mp4"
     And "Yes, this is the file I intended to submit" "button" should exist
     And I should not see "You confirmed this file"
@@ -179,7 +183,8 @@ Feature: Students check a preview of their assignment file straight after submit
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "No problems found in essay.docx"
+    Then I should see "Check this is the right file"
+    And I should not see "broken item"
     And "Preview of essay.docx" "local_submissioncheck > Preview" should exist
     And I click on "linked-media.pptx" "local_submissioncheck > File tab"
     And I should see "interview.mp4"
@@ -204,7 +209,8 @@ Feature: Students check a preview of their assignment file straight after submit
     And I open the notification popover
     Then I should see "Check your submission to Essay 1"
     And I click on "Check your submission to Essay 1" "link"
-    And I should see "No problems found in essay.docx"
+    And I should see "Check this is the right file"
+    And I should not see "broken item"
 
   Scenario: If preview conversion is unavailable for a file only a converter can preview, the submission is unaffected
     Given the submission check converter is unavailable
@@ -212,7 +218,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/essay.rtf" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "A preview isn't available right now. Your file has been submitted."
+    Then I should see "We couldn't preview this type of file."
     And I am on the "Essay 1" "assign activity" page
     And I should see "Submitted for grading"
 
@@ -221,7 +227,7 @@ Feature: Students check a preview of their assignment file straight after submit
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/notes.pages" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "There is no preview for this type of file (notes.pages)."
+    Then I should see "We couldn't preview this type of file."
 
   @accessibility
   Scenario: The report is accessible without the visual preview
@@ -251,4 +257,6 @@ Feature: Students check a preview of their assignment file straight after submit
     And I click on "Continue checking your submission" "link"
     Then I should see "interview.mp4"
     And I press "Yes, this is the file I intended to submit"
+    And I wait "2" seconds
+    And I press "Click again to confirm with 2 broken items"
     And I should see "Ali Student confirmed this file and read the warnings about it"

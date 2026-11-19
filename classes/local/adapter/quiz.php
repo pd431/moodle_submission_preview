@@ -146,8 +146,7 @@ class quiz {
         $data['needsack'] = $data['haswarnings'] && !$acknowledged && !$nearend;
         $data['nearend'] = $data['haswarnings'] && $nearend;
         $data['nearendmessage'] = get_string('quiznearend', 'local_submissioncheck');
-        $data['acklabel'] = get_string('quizacklabel', 'local_submissioncheck');
-        $data['ackrequired'] = get_string('quizackrequired', 'local_submissioncheck');
+        $data['armedlabel'] = report_builder::confirm_again_label($data['files'], 'quizconfirmagain');
         return $data;
     }
 
@@ -272,7 +271,7 @@ class quiz {
             'files' => $built['files'],
             'haswarnings' => $built['haswarnings'],
             'pending' => $built['pending'],
-            'disclaimer' => report_builder::disclaimer(get_course($cm->course), $cm),
+            'disclaimer' => report_builder::disclaimer(),
             'timelimitnote' => $timelimit ? get_string('quiztimelimitnote', 'local_submissioncheck') : '',
         ];
     }

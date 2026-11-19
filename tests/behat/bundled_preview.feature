@@ -25,7 +25,7 @@ Feature: Students get a preview of their file even when the site has no document
     Given I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
     Then the Word preview of "essay.docx" should show "The role of feedback in learning"
-    And I should not see "A preview isn't available right now."
+    And I should not see "We couldn't preview this type of file."
 
   Scenario: A spreadsheet is shown as a table with the values the spreadsheet stored
     Given I upload "local/submissioncheck/tests/fixtures/marks.xlsx" file to "File submissions" filemanager
@@ -48,4 +48,4 @@ Feature: Students get a preview of their file even when the site has no document
     Then the Word preview of "essay.docx" should show "Feedback helps students"
     And "Preview of marks.xlsx" "local_submissioncheck > Preview" should exist
     And I click on "essay.rtf" "local_submissioncheck > File tab"
-    And I should see "A preview isn't available right now. Your file has been submitted." in the "Preview of essay.rtf" "local_submissioncheck > Preview"
+    And I should see "We couldn't preview this type of file." in the "Preview of essay.rtf" "local_submissioncheck > Preview"

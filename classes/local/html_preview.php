@@ -103,6 +103,16 @@ class html_preview {
     }
 
     /**
+     * The id a broken item's box has in a preview, so the side list can jump to it.
+     *
+     * @param string $name The item's name.
+     * @return string
+     */
+    public static function anchor(string $name): string {
+        return 'broken-' . substr(sha1($name), 0, 12);
+    }
+
+    /**
      * Render a file as a standalone HTML page.
      *
      * @param \stored_file $file
@@ -261,7 +271,8 @@ class html_preview {
         $box = function (string $name) use ($OUTPUT): string {
             return $OUTPUT->render_from_template(
                 'local_submissioncheck/missing_item',
-                ['message' => get_string('missingitem', 'local_submissioncheck', $name)]
+                ['message' => get_string('missingitem', 'local_submissioncheck', $name), 'name' => $name,
+                    'anchor' => self::anchor($name)]
             );
         };
         $html = '';

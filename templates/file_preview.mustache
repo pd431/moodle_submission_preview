@@ -25,7 +25,7 @@
 }}
 <div class="local-submissioncheck-preview mb-3" role="region" aria-label="{{previewlabel}}"
      {{#previewpending}}data-pending="1"{{/previewpending}}>
-    <h4 class="h6">{{previewlabel}}</h4>
+    <h4 class="sr-only visually-hidden">{{previewlabel}}</h4>
     {{#previewready}}
         {{#previewpdf}}
         <object class="local-submissioncheck-pdf w-100 border" data="{{previewurl}}" type="application/pdf"
@@ -52,13 +52,31 @@
         {{/previewhtml}}
         {{#previewdocx}}
         <div class="local-submissioncheck-docx border" data-region="local-submissioncheck-docx" data-url="{{previewurl}}"
-             data-label="{{previewlabel}}" data-failed="{{previewunavailablemessage}}">
+             data-label="{{previewlabel}}" data-failed="{{previewdrawfailedmessage}}" data-brokentargets="{{brokentargets}}">
             <p class="text-muted m-2" role="status">{{previewloadingmessage}}</p>
         </div>
         {{/previewdocx}}
     {{/previewready}}
-    {{#previewpending}}<p class="text-muted" role="status">{{previewpendingmessage}}</p>{{/previewpending}}
-    {{#previewunsupported}}<p class="text-muted">{{previewunsupportedmessage}}</p>{{/previewunsupported}}
-    {{#previewunavailable}}<p class="alert alert-info">{{previewunavailablemessage}}</p>{{/previewunavailable}}
-    {{#previewtoolarge}}<p class="text-muted">{{previewtoolargemessage}}</p>{{/previewtoolarge}}
+    {{#previewpending}}<div class="local-submissioncheck-state"><p role="status">{{previewpendingmessage}}</p></div>{{/previewpending}}
+    {{#previewtoolarge}}<div class="local-submissioncheck-state"><p>{{previewtoolargemessage}}</p></div>{{/previewtoolarge}}
+    {{#frameunreadable}}
+    <div class="local-submissioncheck-state local-submissioncheck-state-broken">
+        {{#pix}}i/warning, core{{/pix}}
+        <p class="local-submissioncheck-statetitle">{{#str}}frameunreadable, local_submissioncheck{{/str}}</p>
+        <p>{{#str}}framecorrupt, local_submissioncheck{{/str}}</p>
+    </div>
+    {{/frameunreadable}}
+    {{#frameprotected}}
+    <div class="local-submissioncheck-state local-submissioncheck-state-broken">
+        {{#pix}}i/warning, core{{/pix}}
+        <p class="local-submissioncheck-statetitle">{{#str}}frameprotected, local_submissioncheck{{/str}}</p>
+        <p>{{#str}}frameprotectedmarker, local_submissioncheck{{/str}}</p>
+    </div>
+    {{/frameprotected}}
+    {{#framenotype}}
+    <div class="local-submissioncheck-state">
+        <p class="local-submissioncheck-statetitle">{{#str}}framenotype, local_submissioncheck{{/str}}</p>
+        <p>{{#str}}framecheckfile, local_submissioncheck{{/str}}</p>
+    </div>
+    {{/framenotype}}
 </div>

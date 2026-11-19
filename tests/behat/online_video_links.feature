@@ -25,7 +25,7 @@ Feature: Online videos and media on sign-in storage are flagged
     And I upload "local/submissioncheck/tests/fixtures/sharepoint-video.docx" file to "File submissions" filemanager
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "1 warning" in the "sharepoint-video.docx" "local_submissioncheck > File tab"
+    Then I should see "1 broken" in the "sharepoint-video.docx" "local_submissioncheck > File tab"
     And I click on "sharepoint-video.docx" "local_submissioncheck > File tab"
     And the Word preview of "sharepoint-video.docx" should show "untitled.mp4 is not included in this document."
     And the Word preview of "sharepoint-video.docx" should show "It is stored on OneDrive. A marker will not see it."
@@ -36,6 +36,8 @@ Feature: Online videos and media on sign-in storage are flagged
     And I upload "local/submissioncheck/tests/fixtures/sharepoint-video.docx" file to "File submissions" filemanager
     And I press "Save changes"
     When I press "Yes, this is the file I intended to submit"
+    And I wait "2" seconds
+    And I press "Click again to confirm with 1 broken item"
     Then I should see "You confirmed this file and read the warnings about it"
 
   Scenario: A video on another site is listed, not flagged
@@ -43,7 +45,8 @@ Feature: Online videos and media on sign-in storage are flagged
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/youtube-video.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "No problems found in youtube-video.docx"
+    Then I should see "Check this is the right file"
+    And I should not see "broken item"
     And I should see "1 online video (youtube.com)" in the "About youtube-video.docx" "local_submissioncheck > Facts"
     And the Word preview of "youtube-video.docx" should not show "is not included in this document"
 
@@ -53,7 +56,7 @@ Feature: Online videos and media on sign-in storage are flagged
     And I upload "local/submissioncheck/tests/fixtures/sharepoint-video.pptx" file to "File submissions" filemanager
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "1 warning" in the "sharepoint-video.pptx" "local_submissioncheck > File tab"
+    Then I should see "2 broken" in the "sharepoint-video.pptx" "local_submissioncheck > File tab"
     And I click on "sharepoint-video.pptx" "local_submissioncheck > File tab"
     And I should see "It is stored on OneDrive. A marker will not see it."
 
@@ -65,11 +68,13 @@ Feature: Online videos and media on sign-in storage are flagged
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/sharepoint-video.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "No problems found in sharepoint-video.docx"
+    Then I should see "Check this is the right file"
+    And I should not see "broken item"
 
   Scenario: A plain Word document is not flagged
     Given I am on the "Essay 1" "assign activity" page logged in as "student1"
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "No problems found in essay.docx"
+    Then I should see "Check this is the right file"
+    And I should not see "broken item"

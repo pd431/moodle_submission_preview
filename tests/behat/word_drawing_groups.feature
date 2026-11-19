@@ -26,7 +26,8 @@ Feature: Pictures inside Word drawing groups appear in the preview
     When I press "Save changes"
     Then the Word preview of "grouped-pictures.docx" should show 1 picture
     And the Word preview of "grouped-pictures.docx" should show "Drawing not shown in this preview. Your marker will see it."
-    And I should see "No problems found in grouped-pictures.docx"
+    And I should see "Check this is the right file"
+    And I should not see "broken item"
 
   Scenario: The text of a grouped text box is in the preview
     Given I am on the "Essay 1" "assign activity" page logged in as "student1"

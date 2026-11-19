@@ -36,9 +36,9 @@ Feature: Students see checks and a preview of files attached to quiz essay quest
     Given I am on the "Quiz 1" "mod_quiz > View" page logged in as "student1"
     And I press "Attempt quiz"
     When I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to the attachments of "Question 1"
-    Then I should see "The following files have been linked but not embedded in your file. A marker will not be able to see them. See https://aka.ms/file_embedding for solutions."
+    Then I should see "2 broken items"
     And I should see "interview.mp4"
-    And I should see "This is an approximate preview of your document(s). Layout may be approximate. Use it to check this is what you intended to submit to RS101 Quiz 1, and that it has all the content you expect, and the latest changes you made to it."
+    And I should see "Previews are approximate."
     And "Preview of linked-media.pptx" "local_submissioncheck > Preview" should exist
 
   Scenario: Quiz attachments show their facts under the question
@@ -53,16 +53,16 @@ Feature: Students see checks and a preview of files attached to quiz essay quest
     When I press "Attempt quiz"
     Then I should not see "Submission checks" in the "Question 2" "question"
 
-  Scenario: Finishing with an unacknowledged warning asks for the tick first
+  Scenario: Finishing with a broken item asks twice
     Given I am on the "Quiz 1" "mod_quiz > View" page logged in as "student1"
     And I press "Attempt quiz"
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to the attachments of "Question 1"
     And I press "Finish attempt ..."
     Then I should see "interview.mp4"
     And I press "Submit all and finish"
-    And I should see "Please read the warnings about your files and tick the box to confirm before finishing."
-    And I set the field "I have read these warnings and still want to submit these files" to "1"
-    And I press "Submit all and finish"
+    And I should see "Finish attempt"
+    And I wait "2" seconds
+    And I press "Click again to finish with 2 broken items"
     And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     And I should see "Finished"
 
@@ -70,7 +70,8 @@ Feature: Students see checks and a preview of files attached to quiz essay quest
     Given I am on the "Quiz 1" "mod_quiz > View" page logged in as "student1"
     And I press "Attempt quiz"
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to the attachments of "Question 1"
-    And I should see "No problems found in essay.docx"
+    And I should see "Check this is the right file"
+    And I should not see "broken item"
     And I press "Finish attempt ..."
     When I press "Submit all and finish"
     Then I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
@@ -109,8 +110,9 @@ Feature: Students see checks and a preview of files attached to quiz essay quest
     And I press "Attempt quiz"
     And I upload "local/submissioncheck/tests/fixtures/linked-media.pptx" file to the attachments of "Question 1"
     And I press "Finish attempt ..."
-    And I set the field "I have read these warnings and still want to submit these files" to "1"
     And I press "Submit all and finish"
+    And I wait "2" seconds
+    And I press "Click again to finish with 2 broken items"
     And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"
     When I am on the "Quiz 1" "mod_quiz > View" page logged in as "manager1"
     And I follow "Submission check results"

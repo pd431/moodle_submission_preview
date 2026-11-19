@@ -17,33 +17,50 @@
 {{!
     @template local_submissioncheck/file_checks
 
-    One file's check results.
+    One file's side panel: what is broken, in red and only when something is (each item once, with a short reason
+    and its place; selecting an item shows it in the preview when the preview marks it), then the questions that help
+    a student check this is the right file. Nothing is shown to say a file is fine.
 
     Example context (json):
-    {"name": "essay.docx", "checkslabel": "Submission checks for essay.docx", "ok": true,
-        "okmessage": "No problems found in essay.docx", "hasfindings": false, "findings": []}
+    {
+        "name": "report.docx", "checkslabel": "Checks for report.docx", "hasbroken": true, "brokencount": 1,
+        "brokenlabel": "Broken items in report.docx", "brokenheading": "1 broken item",
+        "brokenshown": [{"name": "graph1.png", "reason": "Not in the file: on your computer", "place": null,
+            "jump": true, "anchor": "broken-1"}],
+        "brokenmore": [], "hasbrokenmore": false, "brokenmorelabel": "", "brokenhelp": "https://aka.ms/file_embedding"
+    }
 }}
 <div class="local-submissioncheck-checks mb-3" role="region" aria-label="{{checkslabel}}">
-    {{#ok}}
-    <p class="local-submissioncheck-ok mb-1"><i class="icon fa fa-check text-success" aria-hidden="true"></i>{{okmessage}}</p>
-    {{/ok}}
-    {{#hasfindings}}
-    <div class="alert alert-warning mb-1">
-        <p class="mb-1"><strong>{{name}}</strong></p>
-        {{#findings}}
-        <p class="mb-1">{{message}}</p>
-        {{#hasitems}}
-        <ul class="mb-1">
-            {{#items}}<li>{{name}}</li>{{/items}}
+    {{#hasbroken}}
+    <div class="local-submissioncheck-broken mb-3" role="region" aria-label="{{brokenlabel}}" data-region="local-submissioncheck-broken">
+        <h4 class="local-submissioncheck-brokenheading">{{#pix}}i/warning, core{{/pix}}{{brokenheading}}</h4>
+        <p class="local-submissioncheck-brokensub">{{#str}}brokensub, local_submissioncheck{{/str}}</p>
+        <ul class="local-submissioncheck-brokenlist">
+            {{#brokenshown}}{{> local_submissioncheck/broken_item }}{{/brokenshown}}
         </ul>
-        {{/hasitems}}
-        {{/findings}}
+        {{#hasbrokenmore}}
+        <details class="local-submissioncheck-brokenmore">
+            <summary>{{brokenmorelabel}}</summary>
+            <ul class="local-submissioncheck-brokenlist">
+                {{#brokenmore}}{{> local_submissioncheck/broken_item }}{{/brokenmore}}
+            </ul>
+        </details>
+        {{/hasbrokenmore}}
+        {{#brokenhelp}}<p class="local-submissioncheck-brokenhelp"><a href="{{brokenhelp}}" target="_blank">{{#str}}brokenhelp, local_submissioncheck{{/str}}</a></p>{{/brokenhelp}}
     </div>
-    {{/hasfindings}}
+    {{/hasbroken}}
     {{#checksunavailable}}
-    <p class="alert alert-info mb-1">{{checksunavailablemessage}}</p>
+    <p class="alert alert-info mb-3">{{checksunavailablemessage}}</p>
     {{/checksunavailable}}
     {{#incomplete}}
-    <p class="text-muted mb-1">{{incompletemessage}}</p>
+    <p class="text-muted mb-3">{{incompletemessage}}</p>
     {{/incomplete}}
+    <div class="local-submissioncheck-rightfile mb-3">
+        <h4 class="h6 mb-1">{{#str}}rightfile, local_submissioncheck{{/str}}</h4>
+        <ul class="mb-0">
+            <li>{{#str}}rightfile_assessment, local_submissioncheck{{/str}}</li>
+            <li>{{#str}}rightfile_latest, local_submissioncheck{{/str}}</li>
+            <li>{{#str}}rightfile_complete, local_submissioncheck{{/str}}</li>
+        </ul>
+    </div>
 </div>

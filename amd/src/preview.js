@@ -62,12 +62,13 @@ const replaceMarkers = async(doc) => {
         const notshown = missing || cloud ? null : walker.currentNode.data.match(NOT_SHOWN);
         if (cloud) {
             found.push({node: walker.currentNode, template: 'missing_item', string: 'clouditem',
-                name: {name: cloud[1], host: cloud[2]}, width: parseInt(cloud[3], 10), height: parseInt(cloud[4], 10)});
+                name: {name: cloud[1], host: cloud[2]}, broken: cloud[1],
+                width: parseInt(cloud[3], 10), height: parseInt(cloud[4], 10)});
         } else if (missing) {
             found.push({node: walker.currentNode, template: 'missing_item', string: 'missingitem', name: missing[1],
-                width: parseInt(missing[2], 10), height: parseInt(missing[3], 10)});
+                broken: missing[1], width: parseInt(missing[2], 10), height: parseInt(missing[3], 10)});
         } else if (notshown) {
-            found.push({node: walker.currentNode, template: 'not_shown', string: 'drawingnotshown', name: null,
+            found.push({node: walker.currentNode, template: 'not_shown', string: 'drawingnotshown', name: null, broken: null,
                 width: parseInt(notshown[1], 10), height: parseInt(notshown[2], 10)});
         }
     }
@@ -75,6 +76,7 @@ const replaceMarkers = async(doc) => {
         const message = await getString(item.string, 'local_submissioncheck', item.name);
         const {html} = await Templates.renderForPromise('local_submissioncheck/' + item.template, {
             message: message,
+            name: item.broken,
             width: item.width ? item.width + 'px' : null,
             height: item.height ? item.height + 'px' : null,
         });
@@ -135,8 +137,21 @@ const renderOne = async(region) => {
         const doc = frame.contentDocument;
         await renderer.renderAsync(data, doc.body, doc.head, OPTIONS);
         await replaceMarkers(doc);
+        // Links a marker cannot follow are outlined in red (the server lists their exact addresses); every link keeps
+        // its text but goes nowhere.
+        let broken = {};
+        try {
+            broken = JSON.parse(region.dataset.brokentargets || '{}') || {};
+        } catch (e) {
+            broken = {};
+        }
         doc.querySelectorAll('a[href]').forEach((link) => {
-            if (!link.getAttribute('href').startsWith('#')) {
+            const href = link.getAttribute('href');
+            if (Object.prototype.hasOwnProperty.call(broken, href)) {
+                link.dataset.broken = broken[href];
+                link.style.cssText += ';color:#b00020;outline:2px solid #b00020;outline-offset:1px;font-weight:700;';
+            }
+            if (!href.startsWith('#')) {
                 link.removeAttribute('href');
             }
         });
@@ -147,6 +162,57 @@ const renderOne = async(region) => {
     } finally {
         pending.resolve();
     }
+};
+
+/**
+ * Show a broken item where the preview marks it: in a drawn Word document, scroll to it and flash it; in a text-only
+ * preview, move the frame to its box.
+ *
+ * @param {HTMLElement} root Where the file's preview is.
+ * @param {HTMLElement} button The item's button in the side list.
+ */
+const showBroken = (root, button) => {
+    const label = button.dataset.preview;
+    const docx = Array.from(root.querySelectorAll('[data-region="local-submissioncheck-docx"]'))
+        .find((region) => region.dataset.label === label);
+    const frame = docx ? docx.querySelector('iframe') : null;
+    if (frame && frame.contentDocument) {
+        const target = Array.from(frame.contentDocument.querySelectorAll('[data-broken]'))
+            .find((el) => el.dataset.broken === button.dataset.name);
+        if (target) {
+            frame.scrollIntoView({block: 'start'});
+            target.scrollIntoView({block: 'center'});
+            target.style.boxShadow = '0 0 0 6px #ffd400';
+            window.setTimeout(() => {
+                target.style.boxShadow = '';
+            }, 1500);
+        }
+        return;
+    }
+    const outline = Array.from(root.querySelectorAll('[data-region="local-submissioncheck-frame"]'))
+        .find((el) => el.title === label);
+    if (outline) {
+        outline.src = outline.src.split('#')[0] + '#' + button.dataset.anchor;
+        outline.scrollIntoView({block: 'start'});
+    }
+};
+
+/**
+ * Let the broken items in the side lists inside an element jump to their place in the preview.
+ *
+ * @param {HTMLElement} root
+ */
+export const enableJumps = (root) => {
+    if (!root || root.dataset.jumps) {
+        return;
+    }
+    root.dataset.jumps = '1';
+    root.addEventListener('click', (e) => {
+        const button = e.target.closest('[data-action="local-submissioncheck-jump"]');
+        if (button) {
+            showBroken(root, button);
+        }
+    });
 };
 
 /**

@@ -24,7 +24,7 @@ Feature: A damaged file is reported even when nothing about it is recognisable
     And I upload "local/submissioncheck/tests/fixtures/damaged-start.docx" file to "File submissions" filemanager
     When I press "Save changes"
     Then I should see "damaged-start.docx could not be opened. It may be damaged or only partly uploaded."
-    And I should not see "No problems found in damaged-start.docx"
+    And I should see "1 broken item"
 
   Scenario: A PDF that is only noise cannot be opened
     Given I am on the "Essay 1" "assign activity" page logged in as "student1"
@@ -46,11 +46,13 @@ Feature: A damaged file is reported even when nothing about it is recognisable
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/clip.mp3" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "No problems found in clip.mp3"
+    Then I should see "Check this is the right file"
+    And I should not see "broken item"
 
   Scenario: A plain Word document is not affected
     Given I am on the "Essay 1" "assign activity" page logged in as "student1"
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "No problems found in essay.docx"
+    Then I should see "Check this is the right file"
+    And I should not see "broken item"
