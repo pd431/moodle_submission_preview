@@ -76,7 +76,7 @@ class linked_media extends check {
      * @return int
      */
     public function get_version(): int {
-        return 3;
+        return 4;
     }
 
     /**
@@ -102,6 +102,16 @@ class linked_media extends check {
         if ($found) {
             $names = array_values(array_unique(array_column($found, 'name')));
             $findings[] = new finding('linkedmedia', ['name' => $file->get_filename(), 'slides' => self::slides($found)], $names);
+        }
+        $links = self::locate_links($file);
+        if ($links) {
+            $names = array_values(array_unique(array_column($links, 'name')));
+            $findings[] = new finding('brokenlink', [
+                'name' => $file->get_filename(),
+                'slides' => self::slides($links),
+                'hosts' => array_filter(array_column($links, 'host', 'name')),
+                'targets' => array_column($links, 'target', 'name'),
+            ], $names);
         }
         $cloud = self::locate_cloud($file);
         if ($cloud) {
@@ -129,6 +139,83 @@ class linked_media extends check {
             }
         }
         return $slides;
+    }
+
+    /**
+     * Text links a marker cannot follow: to files on the student's computer, or to sign-in storage. Public web links
+     * are fine. Links on pictures (an online video's poster) are not text links.
+     *
+     * @param inspected_file $file
+     * @return array [['name' => link text, 'target' => string, 'host' => service or null when local,
+     *     'slide' => int|null], ...]
+     */
+    public static function locate_links(inspected_file $file): array {
+        $found = [];
+        $add = function (string $target, string $text, ?int $slide) use (&$found) {
+            $target = trim($target);
+            $host = null;
+            if (preg_match('#^https?://#i', $target)) {
+                $domain = \core_text::strtolower((string) parse_url($target, PHP_URL_HOST));
+                if ($domain === '' || !self::is_signin_host($domain)) {
+                    return;
+                }
+                $host = self::service_name($domain);
+            } else if (!self::is_local($target)) {
+                return;
+            }
+            $text = trim(preg_replace('/\s+/u', ' ', html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8')));
+            $name = $text !== '' ? \core_text::substr($text, 0, 60) : self::basename($target);
+            $item = ['name' => $name, 'target' => $target, 'host' => $host, 'slide' => $slide];
+            if (!in_array($item, $found, true)) {
+                $found[] = $item;
+            }
+        };
+        if ($file->get_type() === inspected_file::TYPE_OOXML) {
+            $parts = array_slice(
+                $file->find_entries('#^(word/(document|header\d*|footer\d*)|ppt/slides/slide\d+)\.xml$#'),
+                0,
+                self::MAX_PARTS
+            );
+            natsort($parts);
+            foreach ($parts as $part) {
+                $rels = (string) $file->read_entry(dirname($part) . '/_rels/' . basename($part) . '.rels');
+                if (stripos($rels, 'hyperlink') === false) {
+                    continue;
+                }
+                $targets = [];
+                foreach ((new self())->elements($rels, 'Relationship') as $attrs) {
+                    if (($attrs['TargetMode'] ?? '') === 'External' && substr($attrs['Type'] ?? '', -10) === '/hyperlink') {
+                        $targets[$attrs['Id'] ?? ''] = (string) ($attrs['Target'] ?? '');
+                    }
+                }
+                if (!$targets) {
+                    continue;
+                }
+                $xml = (string) $file->read_entry($part);
+                $slide = preg_match('#^ppt/slides/slide(\d+)\.xml$#', $part, $m) ? (int) $m[1] : null;
+                // Word: <w:hyperlink r:id="..."> around the runs. PowerPoint: a:hlinkClick in a run's properties.
+                preg_match_all('#<w:hyperlink\b[^>]*\br:id="([^"]+)"[^>]*>(.*?)</w:hyperlink>#s', $xml, $word, PREG_SET_ORDER);
+                foreach ($word as $link) {
+                    if (isset($targets[$link[1]])) {
+                        preg_match_all('#<w:t\b[^>]*>([^<]*)</w:t>#', $link[2], $texts);
+                        $add($targets[$link[1]], implode('', $texts[1]), $slide);
+                    }
+                }
+                preg_match_all('#<a:r>(.*?)</a:r>#s', $xml, $runs);
+                foreach ($runs[1] as $run) {
+                    if (preg_match('#<a:hlinkClick\b[^>]*\br:id="([^"]+)"#', $run, $id) && isset($targets[$id[1]])) {
+                        $add($targets[$id[1]], preg_match('#<a:t>([^<]*)</a:t>#', $run, $t) ? $t[1] : '', $slide);
+                    }
+                }
+            }
+        } else if ($file->get_type() === inspected_file::TYPE_ODF) {
+            $xml = (string) $file->read_entry('content.xml');
+            preg_match_all('#<text:a\b[^>]*\bxlink:href="([^"]*)"[^>]*>(.*?)</text:a>#s', $xml, $links, PREG_SET_ORDER);
+            foreach ($links as $link) {
+                $add(html_entity_decode($link[1], ENT_QUOTES | ENT_XML1, 'UTF-8'), strip_tags($link[2]), null);
+            }
+        }
+        return $found;
     }
 
     /**

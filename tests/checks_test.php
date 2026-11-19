@@ -340,4 +340,33 @@ final class checks_test extends \advanced_testcase {
         // What a real MP3 named .docx reports today (recorded, not changed in this build).
         $this->assertSame([[], []], $this->run_checks($dir . 'clip.mp3', 'clip.docx'));
     }
+
+    /**
+     * Text links to files on the student's computer or to sign-in storage are broken; public web and mail links are
+     * not; each broken item has a short reason.
+     */
+    public function test_broken_links(): void {
+        global $CFG;
+        $this->resetAfterTest();
+        $dir = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/';
+        $links = local\checks\linked_media::locate_links(new inspected_file($dir . 'broken-links.docx', 'broken-links.docx'));
+        $this->assertSame(['Reading list', 'My notes'], array_column($links, 'name'));
+        $this->assertSame(['SharePoint', null], array_column($links, 'host'));
+
+        $this->assertSame([], local\checks\linked_media::locate_links(new inspected_file($dir . 'public-link.docx', 'p.docx')));
+        $this->assertSame([], (new local\checks\linked_media())->run(new inspected_file($dir . 'public-link.docx', 'p.docx')));
+        // An online video's poster link is not a text link.
+        $video = new inspected_file($dir . 'sharepoint-video.docx', 'v.docx');
+        $this->assertSame([], local\checks\linked_media::locate_links($video));
+
+        $items = [];
+        foreach ((new local\checks\linked_media())->run(new inspected_file($dir . 'broken-links.docx', 'b.docx')) as $finding) {
+            $items = array_merge($items, $finding->broken_items());
+        }
+        $this->assertSame([
+            ['Not in the file: on your computer', 'graph1.png'],
+            ['Needs sign-in: SharePoint', 'Reading list'],
+            ['Link to a file on your computer', 'My notes'],
+        ], array_map(fn($i) => [$i['reason'], $i['name']], $items));
+    }
 }

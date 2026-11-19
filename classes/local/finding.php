@@ -96,6 +96,40 @@ class finding {
     }
 
     /**
+     * The broken items this finding lists, as the student's red box shows them: name, short reason and place. Null
+     * when the finding is about the whole file rather than items in it.
+     *
+     * @return array|null [['name' => string, 'reason' => string, 'place' => string|null, 'target' => string|null], ...]
+     */
+    public function broken_items(): ?array {
+        if (!in_array($this->code, ['linkedmedia', 'cloudmedia', 'brokenlink'], true)) {
+            return null;
+        }
+        $slides = (array) ($this->params['slides'] ?? []);
+        $hosts = (array) ($this->params['hosts'] ?? []);
+        $targets = (array) ($this->params['targets'] ?? []);
+        $items = [];
+        foreach ($this->items as $name) {
+            $host = $hosts[$name] ?? null;
+            if ($this->code === 'linkedmedia') {
+                $reason = get_string('brokenreason_local', 'local_submissioncheck');
+            } else if ($this->code === 'cloudmedia') {
+                $reason = get_string('brokenreason_cloud', 'local_submissioncheck', $host);
+            } else {
+                $reason = $host === null ? get_string('brokenreason_locallink', 'local_submissioncheck')
+                    : get_string('brokenreason_signinlink', 'local_submissioncheck', $host);
+            }
+            $items[] = [
+                'name' => $name,
+                'reason' => $reason,
+                'place' => isset($slides[$name]) ? get_string('brokenplace_slide', 'local_submissioncheck', $slides[$name]) : null,
+                'target' => $targets[$name] ?? null,
+            ];
+        }
+        return $items;
+    }
+
+    /**
      * Short form for the staff results table.
      *
      * @return string
