@@ -131,6 +131,6 @@ Feature: Students review each submitted file on its own page before confirming
     And I press "Add submission"
     And I upload "local/submissioncheck/tests/fixtures/essay.docx" file to "File submissions" filemanager
     When I press "Save changes"
-    Then I should see "What we found"
+    Then I should see "Check this is the right file"
     And I should see "Look through your file"
     And "Yes, this is the file I intended to submit" "button" should be visible

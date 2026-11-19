@@ -152,7 +152,8 @@ const setUpAnswer = (review) => {
                 action: 'arm',
                 ajax: '1',
             });
-            fetch(form.action, {method: 'POST', credentials: 'same-origin', body: body}).catch(() => null);
+            // The form's buttons are named "action", so form.action is not the address.
+            fetch(form.getAttribute('action'), {method: 'POST', credentials: 'same-origin', body: body}).catch(() => null);
         },
         onArmed: () => {
             ack.value = '1';

@@ -58,7 +58,7 @@ Feature: Online videos and media on sign-in storage are flagged
     When I press "Save changes"
     Then I should see "2 broken" in the "sharepoint-video.pptx" "local_submissioncheck > File tab"
     And I click on "sharepoint-video.pptx" "local_submissioncheck > File tab"
-    And I should see "It is stored on OneDrive. A marker will not see it."
+    And I should see "Not in the file: on OneDrive"
 
   Scenario: Only the hosts in the site setting count as sign-in storage
     Given the following config values are set as admin:

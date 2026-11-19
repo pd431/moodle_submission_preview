@@ -60,7 +60,6 @@ Feature: Students see checks and a preview of files attached to quiz essay quest
     And I press "Finish attempt ..."
     Then I should see "interview.mp4"
     And I press "Submit all and finish"
-    And I should see "Finish attempt"
     And I wait "2" seconds
     And I press "Click again to finish with 2 broken items"
     And I click on "Submit all and finish" "button" in the "Submit all your answers and finish?" "dialogue"

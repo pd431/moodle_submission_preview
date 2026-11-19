@@ -105,7 +105,7 @@ Feature: The review shows what is broken first, in few words, and asks twice bef
     When I press "Yes, this is the file I intended to submit"
     And I wait "2" seconds
     And "Click again to confirm with 3 broken items" "button" should exist
-    And I click on "Check this is the right file" "text"
+    And I click on "Check your submission to" "text"
     Then "Yes, this is the file I intended to submit" "button" should exist
     And "Click again to confirm with 3 broken items" "button" should not exist
 

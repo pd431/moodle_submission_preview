@@ -233,6 +233,9 @@
 }
 
 .local-submissioncheck-brokenhelp a {
+    display: inline-block;
+    min-height: 24px;
+    padding: 2px 0;
     color: #7a0016;
 }
 
