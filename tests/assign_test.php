@@ -384,4 +384,18 @@ final class assign_test extends \advanced_testcase {
         $this->submit($clean, $this->student, ['essay.docx']);
         $this->assertTrue(confirmation::is_armed($this->current($clean, $this->student), false));
     }
+
+    /**
+     * The follow-tags choice says what the tags give: on with the matching tag, off with none, or no tags set up.
+     */
+    public function test_follow_label(): void {
+        $cm = $this->make_assign();
+        set_config('defaulttags', 'summative, formative', 'local_submissioncheck');
+        $this->assertSame('Follow tags (off: no matching tag)', activation::follow_label($cm->id));
+        \core_tag_tag::set_item_tags('core', 'course_modules', $cm->id, \context_module::instance($cm->id), ['summative']);
+        $this->assertSame('Follow tags (on: tagged summative)', activation::follow_label($cm->id));
+        $this->assertSame('Follow tags (off: no matching tag)', activation::follow_label(0));
+        set_config('defaulttags', '', 'local_submissioncheck');
+        $this->assertSame('Follow tags (off: no tags set up)', activation::follow_label($cm->id));
+    }
 }

@@ -138,7 +138,23 @@ class activation {
     }
 
     /**
-     * Words explaining to staff why checks are on or off for an activity.
+     * The label of the "follow tags" choice, saying what the tags give for this activity as saved.
+     *
+     * @param int $cmid 0 for a new activity.
+     * @return string
+     */
+    public static function follow_label(int $cmid): string {
+        $site = self::site_tags();
+        if (!$site) {
+            return get_string('mode_auto_notags', 'local_submissioncheck');
+        }
+        $matches = $cmid ? self::matching_tags(self::activity_tags($cmid)) : [];
+        return $matches ? get_string('mode_auto_on', 'local_submissioncheck', implode(', ', $matches))
+            : get_string('mode_auto_off', 'local_submissioncheck');
+    }
+
+    /**
+     * Words explaining to staff why checks are on or off for an activity (the results report).
      *
      * @param int $cmid
      * @return string

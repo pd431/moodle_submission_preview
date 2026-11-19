@@ -4,7 +4,8 @@ One owner per concern. Change a rule in its owner; callers pass flags or data an
 
 | Concern | Owner | Guard test |
 |---|---|---|
-| Whether checks are on for an activity (own setting, or site tags on Automatic) | `classes/local/activation.php` | `tests/assign_test.php` |
+| Whether checks are on for an activity (own setting, or site tags on Follow tags), and the follow-tags label | `classes/local/activation.php` | `tests/assign_test.php` |
+| Where the setting sits in the activity form (assignment: under the submission statement; quiz: end of Question behaviour) and its validation | `lib.php` | `tests/behat/settings_and_access.feature` |
 | Assignment specifics: which files, who may act, group submissions | `classes/local/adapter/assign.php` | `tests/assign_test.php` |
 | Quiz essay attachment specifics | `classes/local/adapter/quiz.php` | `tests/behat/quiz_essay_attachment_checks.feature` |
 | What a file really is (magic bytes, package kind) and safe reads of its content | `classes/local/inspected_file.php` | `tests/checks_test.php` |
