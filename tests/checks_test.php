@@ -379,7 +379,10 @@ final class checks_test extends \advanced_testcase {
         $this->assertSame([['wrongextension'], []], $this->run_checks($dir . 'sound-renamed.docx', 'sound-renamed.docx'));
         $file = new inspected_file($dir . 'sound-renamed.docx', 'sound-renamed.docx');
         $findings = (new local\checks\extension())->run($file);
-        $this->assertSame('sound-renamed.docx is named as a Word document but is actually a sound file.', $findings[0]->get_message());
+        $this->assertSame(
+            'sound-renamed.docx is named as a Word document but is actually a sound file.',
+            $findings[0]->get_message()
+        );
         $file = new inspected_file($dir . 'video-renamed.pdf', 'video-renamed.pdf');
         $findings = (new local\checks\extension())->run($file);
         $this->assertSame('video-renamed.pdf is named as a PDF but is actually a video file.', $findings[0]->get_message());

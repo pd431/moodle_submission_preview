@@ -323,7 +323,7 @@ class behat_local_submissioncheck extends behat_base {
     /**
      * A student submitted a file at a given time (through the assignment, so the checks ran on it).
      *
-     * @Given /^the submission check upload for "(?P<user>[^"]*)" in "(?P<activity>[^"]*)" of "(?P<file>[^"]*)" was made at "(?P<time>[^"]*)"$/
+     * @Given /^the submission check upload for "([^"]*)" in "([^"]*)" of "([^"]*)" was made at "([^"]*)"$/
      * @param string $username
      * @param string $activity
      * @param string $filepath Path from the Moodle root.
@@ -361,7 +361,7 @@ class behat_local_submissioncheck extends behat_base {
     /**
      * Check how recent the current upload of a student's submission is.
      *
-     * @Then /^the submission check upload time for "(?P<user>[^"]*)" in "(?P<activity>[^"]*)" should be within the last "(?P<minutes>\d+)" minutes$/
+     * @Then /^the submission check upload time for "([^"]*)" in "([^"]*)" should be within the last "(\d+)" minutes$/
      * @param string $username
      * @param string $activity
      * @param int $minutes
