@@ -47,18 +47,20 @@ const SETTLE = 800;
  * @param {number} count Polls so far.
  */
 const checkQuestion = (cmid, attemptid, slot, input, container, count) => {
+    let pending = false;
     Ajax.call([{
         methodname: 'local_submissioncheck_check_quiz_draft',
         args: {cmid: cmid, attemptid: attemptid, slot: slot, draftitemid: parseInt(input.value, 10)},
     }])[0].then((response) => {
-        // Replacing is synchronous in some Moodle versions and returns a promise in others.
-        return Promise.resolve(Templates.replaceNodeContents(container, response.html, '')).then(() => {
-            renderAll(container);
-            if (response.pending && count < MAX_POLLS) {
-                window.setTimeout(() => checkQuestion(cmid, attemptid, slot, input, container, count + 1), POLL_INTERVAL);
-            }
-            return null;
-        });
+        pending = response.pending;
+        // Replacing is synchronous in some Moodle versions and returns a promise in others; then() takes either.
+        return Templates.replaceNodeContents(container, response.html, '');
+    }).then(() => {
+        renderAll(container);
+        if (pending && count < MAX_POLLS) {
+            window.setTimeout(() => checkQuestion(cmid, attemptid, slot, input, container, count + 1), POLL_INTERVAL);
+        }
+        return null;
     }).catch(Notification.exception);
 };
 
@@ -118,6 +120,7 @@ const initSummaryPage = (cmid, attemptid) => {
     announce.className = 'sr-only visually-hidden';
     announce.setAttribute('aria-live', 'polite');
     container.after(announce);
+    let pending = false;
 
     const render = (count) => Ajax.call([{
         methodname: 'local_submissioncheck_get_quiz_summary',
@@ -125,14 +128,15 @@ const initSummaryPage = (cmid, attemptid) => {
     }])[0].then((response) => {
         needsAck = response.needsack;
         armedLabel = response.armedlabel;
-        // Replacing is synchronous in some Moodle versions and returns a promise in others.
-        return Promise.resolve(Templates.replaceNodeContents(container, response.html, '')).then(() => {
-            renderAll(container);
-            if (response.pending && count < MAX_POLLS) {
-                window.setTimeout(() => render(count + 1), POLL_INTERVAL);
-            }
-            return null;
-        });
+        pending = response.pending;
+        // Replacing is synchronous in some Moodle versions and returns a promise in others; then() takes either.
+        return Templates.replaceNodeContents(container, response.html, '');
+    }).then(() => {
+        renderAll(container);
+        if (pending && count < MAX_POLLS) {
+            window.setTimeout(() => render(count + 1), POLL_INTERVAL);
+        }
+        return null;
     }).catch(Notification.exception);
 
     // With problems, finishing asks twice; the second press records that the student read them, then lets the quiz

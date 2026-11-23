@@ -187,6 +187,9 @@ const poll = (review, count) => {
         return;
     }
     window.setTimeout(() => {
+        const holder = document.createElement('div');
+        let name = null;
+        let pending = false;
         Ajax.call([{
             methodname: 'local_submissioncheck_get_assign_report',
             args: {cmid: parseInt(review.dataset.cmid, 10)},
@@ -195,27 +198,28 @@ const poll = (review, count) => {
                 return null;
             }
             const selected = review.querySelector('[role="tab"][aria-selected="true"]');
-            const name = selected ? selected.dataset.filename : null;
-            const holder = document.createElement('div');
-            return Promise.resolve(Templates.replaceNodeContents(holder, response.html, '')).then(() => {
-                const replacement = holder.querySelector('[data-region="local-submissioncheck-review"]');
-                if (replacement) {
-                    replacement.id = review.id;
-                    review.replaceWith(replacement);
-                    const tab = name ? Array.from(replacement.querySelectorAll('[role="tab"]'))
-                        .find((t) => t.dataset.filename === name) : null;
-                    if (tab) {
-                        replacement.querySelectorAll('[role="tab"]').forEach((t) => {
-                            t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
-                        });
-                    }
-                    start(replacement);
-                    if (response.pending) {
-                        poll(replacement, count + 1);
-                    }
+            name = selected ? selected.dataset.filename : null;
+            pending = response.pending;
+            // Replacing is synchronous in some Moodle versions and returns a promise in others; then() takes either.
+            return Templates.replaceNodeContents(holder, response.html, '');
+        }).then(() => {
+            const replacement = holder.querySelector('[data-region="local-submissioncheck-review"]');
+            if (replacement) {
+                replacement.id = review.id;
+                review.replaceWith(replacement);
+                const tab = name ? Array.from(replacement.querySelectorAll('[role="tab"]'))
+                    .find((t) => t.dataset.filename === name) : null;
+                if (tab) {
+                    replacement.querySelectorAll('[role="tab"]').forEach((t) => {
+                        t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+                    });
                 }
-                return null;
-            });
+                start(replacement);
+                if (pending) {
+                    poll(replacement, count + 1);
+                }
+            }
+            return null;
         }).catch(Notification.exception);
     }, POLL_INTERVAL);
 };
