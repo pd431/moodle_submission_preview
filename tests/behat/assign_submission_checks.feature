@@ -1,4 +1,4 @@
-@mod_assign @local_submissioncheck @_file_upload @javascript
+@mod_assign @local @local_submissioncheck @_file_upload @javascript
 Feature: Students check a preview of their assignment file straight after submitting it
   In order to catch a broken, empty or wrong file while there is still time to replace it
   As a student

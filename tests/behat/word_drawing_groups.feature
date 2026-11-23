@@ -1,4 +1,4 @@
-@mod_assign @local_submissioncheck @_file_upload @javascript
+@mod_assign @local @local_submissioncheck @_file_upload @javascript
 Feature: Pictures inside Word drawing groups appear in the preview
   In order to check my document's pictures before confirming
   As a student

@@ -1,4 +1,4 @@
-@mod_assign @local_submissioncheck @_file_upload @javascript
+@mod_assign @local @local_submissioncheck @_file_upload @javascript
 Feature: Renamed sound and video files are named, and converter previews show missing items
   In order to know my file is really what its name says, and that a marker will see what is missing
   As a student

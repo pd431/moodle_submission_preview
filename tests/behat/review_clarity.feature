@@ -1,4 +1,4 @@
-@mod_assign @local_submissioncheck @_file_upload @javascript
+@mod_assign @local @local_submissioncheck @_file_upload @javascript
 Feature: The review shows what is broken first, in few words, and asks twice before going ahead with problems
   In order to see at a glance what works and what does not, and check this is the right file
   As a student

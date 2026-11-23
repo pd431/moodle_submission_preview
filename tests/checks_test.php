@@ -34,13 +34,6 @@ use local_submissioncheck\local\inspected_file;
  * @covers     \local_submissioncheck\local\checks\empty_text
  * @covers     \local_submissioncheck\local\inspected_file
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\placeholder::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\opens::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\extension::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\encrypted::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\linked_media::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\empty_text::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\inspected_file::class)]
 final class checks_test extends \advanced_testcase {
     /** @var string[] Temporary files to remove. */
     protected $temp = [];

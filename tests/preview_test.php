@@ -34,10 +34,6 @@ use local_submissioncheck\local\preview_copy;
  * @covers     \local_submissioncheck\local\inspected_file
  * @covers     \local_submissioncheck\local\preview_copy
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(local\preview::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\html_preview::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\inspected_file::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\preview_copy::class)]
 final class preview_test extends \advanced_testcase {
     /** @var int Item id of the next stored file. */
     protected $itemid = 0;

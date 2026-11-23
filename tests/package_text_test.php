@@ -28,7 +28,6 @@ use local_submissioncheck\local\package_text;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \local_submissioncheck\local\package_text
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(local\package_text::class)]
 final class package_text_test extends \advanced_testcase {
     /** Content types part every Office package has. */
     public const TYPES = '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>';
