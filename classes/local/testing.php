@@ -17,7 +17,8 @@
 namespace local_submissioncheck\local;
 
 /**
- * Switches used only by automated tests: a fast stand-in converter, a converter outage, a check outage.
+ * Switches used only by automated tests: a fast stand-in converter (which keeps the file it is handed), a converter
+ * outage, a check outage, and failures of the converter's copy or of the stand-in converter.
  *
  * Nothing here is read unless a PHPUnit or Behat site is running.
  *
@@ -39,7 +40,7 @@ class testing {
     /**
      * Set a test switch.
      *
-     * @param string $name test_converter, converter_down or service_down
+     * @param string $name test_converter, converter_down, service_down, copy_fails or converter_fails
      * @param bool $on
      */
     public static function set(string $name, bool $on): void {
@@ -75,6 +76,24 @@ class testing {
      */
     public static function converter_down(): bool {
         return self::get('converter_down');
+    }
+
+    /**
+     * Whether preparing the converter's copy is to fail.
+     *
+     * @return bool
+     */
+    public static function copy_fails(): bool {
+        return self::get('copy_fails');
+    }
+
+    /**
+     * Whether the stand-in converter is to fail.
+     *
+     * @return bool
+     */
+    public static function converter_fails(): bool {
+        return self::get('converter_fails');
     }
 
     /**

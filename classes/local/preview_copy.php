@@ -40,6 +40,12 @@ class preview_copy {
     public const PARTS_REGEX = '#^word/(document|header\d*|footer\d*)\.xml$#';
     /** Picture graphic data. */
     public const PICTURE_URI = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
+    /** Relationship id of the placeholder picture added to a copy for the converter. */
+    public const PLACEHOLDER_ID = 'rIdSubmissionCheckMissing';
+    /** File name of the placeholder picture inside the copy. */
+    public const PLACEHOLDER_NAME = 'submissioncheck-missing.png';
+    /** Size of a placeholder when the item's own size is not stated, in EMU (320 x 180 px). */
+    public const DEFAULT_EXTENT = [3048000, 1714500];
     /** English Metric Units per CSS pixel. */
     public const EMU_PER_PX = 9525;
 
@@ -367,5 +373,201 @@ class preview_copy {
             return [(int) round($m[1] / self::EMU_PER_PX), (int) round($m[2] / self::EMU_PER_PX)];
         }
         return [0, 0];
+    }
+
+    /**
+     * A copy for the site's document converter in which every broken item (a picture, video or sound file the file only
+     * links to, or media on sign-in storage) is a picture embedded in the copy, at its place and size: the red hatched
+     * box of pix/missing.png, with the missing-item sentence as its alternative text. Word and PowerPoint only; broken
+     * text links are left as they are. Null when the file has nothing to replace (convert it as it is).
+     *
+     * @param \stored_file $file
+     * @return string|null Path of the temporary copy; the caller removes it.
+     */
+    public static function prepare_for_converter(\stored_file $file): ?string {
+        global $CFG;
+        if (testing::copy_fails()) {
+            throw new \coding_exception('Preparing the copy failed (test switch).');
+        }
+        $path = $file->copy_content_to_temp('local_submissioncheck');
+        if ($path === false) {
+            return null;
+        }
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            @unlink($path);
+            return null;
+        }
+        $changed = false;
+        $media = [];
+        $names = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $names[] = (string) $zip->getNameIndex($i);
+        }
+        foreach ($names as $part) {
+            if (preg_match(self::PARTS_REGEX, $part)) {
+                $folder = 'word/media/';
+                $target = 'media/' . self::PLACEHOLDER_NAME;
+            } else if (preg_match('#^ppt/slides/slide\d+\.xml$#', $part)) {
+                $folder = 'ppt/media/';
+                $target = '../media/' . self::PLACEHOLDER_NAME;
+            } else {
+                continue;
+            }
+            $relspath = dirname($part) . '/_rels/' . basename($part) . '.rels';
+            $xml = $zip->getFromName($part);
+            $rels = $zip->getFromName($relspath);
+            if ($xml === false || $rels === false) {
+                continue;
+            }
+            $broken = self::broken_targets($rels);
+            $replaced = strpos($part, 'ppt/') === 0 ? self::replace_slide_items($xml, $broken)
+                : self::replace_word_items($xml, $broken);
+            if ($replaced === $xml) {
+                continue;
+            }
+            $zip->addFromString($part, $replaced);
+            $zip->addFromString($relspath, self::placeholder_rels($rels, $replaced, array_keys($broken), $target));
+            $media[$folder] = true;
+            $changed = true;
+        }
+        if ($changed) {
+            foreach (array_keys($media) as $folder) {
+                $zip->addFile($CFG->dirroot . '/local/submissioncheck/pix/missing.png', $folder . self::PLACEHOLDER_NAME);
+            }
+            $types = (string) $zip->getFromName('[Content_Types].xml');
+            if ($types !== '' && !preg_match('#Extension="png"#i', $types)) {
+                $zip->addFromString('[Content_Types].xml', preg_replace(
+                    '#(<Types\b[^>]*>)#',
+                    '$1<Default Extension="png" ContentType="image/png"/>',
+                    $types,
+                    1
+                ));
+            }
+        }
+        $zip->close();
+        if (!$changed) {
+            @unlink($path);
+            return null;
+        }
+        return $path;
+    }
+
+    /**
+     * Relationship ids of broken items in a part, with the sentence each placeholder carries as alternative text.
+     *
+     * @param string $rels
+     * @return array id => sentence
+     */
+    protected static function broken_targets(string $rels): array {
+        $broken = [];
+        foreach (self::linked_targets($rels) as $id => $name) {
+            $broken[$id] = get_string('missingitem', 'local_submissioncheck', $name);
+        }
+        foreach (self::cloud_targets($rels) as $id => $item) {
+            $broken[$id] = get_string('clouditem', 'local_submissioncheck', (object) $item);
+        }
+        return $broken;
+    }
+
+    /**
+     * In a Word part, replace each drawing, VML picture or object that shows a broken item (or a Word online video on
+     * sign-in storage) with an inline placeholder picture of the same size.
+     *
+     * @param string $xml
+     * @param array $broken id => sentence
+     * @return string
+     */
+    protected static function replace_word_items(string $xml, array $broken): string {
+        $online = get_string('onlinevideo', 'local_submissioncheck');
+        $result = preg_replace_callback('#<w:(drawing|pict|object)\b.*?</w:\1>#s', function ($m) use ($broken, $online) {
+            $sentence = null;
+            foreach (linked_media::word_online_videos($m[0]) as $video) {
+                $domain = \core_text::strtolower((string) parse_url($video['url'], PHP_URL_HOST));
+                if ($domain !== '' && linked_media::is_signin_host($domain)) {
+                    $sentence = get_string('clouditem', 'local_submissioncheck', (object) ['name' => $video['name'] ?? $online,
+                        'host' => linked_media::service_name($domain)]);
+                }
+            }
+            if ($sentence === null && preg_match_all('#\br:(?:link|embed|id)="([^"]+)"#', $m[0], $ids)) {
+                foreach ($ids[1] as $id) {
+                    $sentence = $sentence ?? ($broken[$id] ?? null);
+                }
+            }
+            if ($sentence === null) {
+                return $m[0];
+            }
+            $cx = $cy = 0;
+            if (preg_match('#<wp:extent\b[^>]*\bcx="(\d+)"[^>]*\bcy="(\d+)"#', $m[0], $e)) {
+                [$cx, $cy] = [(int) $e[1], (int) $e[2]];
+            }
+            [$cx, $cy] = $cx && $cy ? [$cx, $cy] : self::DEFAULT_EXTENT;
+            $descr = htmlspecialchars($sentence, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+            return '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' . $cx . '" cy="' . $cy . '"/>' .
+                '<wp:docPr id="' . (800000 + crc32($m[0]) % 100000) . '" name="Missing item" descr="' . $descr . '"/>' .
+                '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="' .
+                self::PICTURE_URI . '"><pic:pic xmlns:pic="' . self::PICTURE_URI . '"><pic:nvPicPr><pic:cNvPr id="0" ' .
+                'name="Missing item" descr="' . $descr . '"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="' .
+                self::PLACEHOLDER_ID . '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" ' .
+                'y="0"/><a:ext cx="' . $cx . '" cy="' . $cy . '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>' .
+                '</pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>';
+        }, $xml);
+        return $result ?? $xml;
+    }
+
+    /**
+     * In a slide, replace each picture, video or sound that shows a broken item with a placeholder picture at the same
+     * place and size.
+     *
+     * @param string $xml
+     * @param array $broken id => sentence
+     * @return string
+     */
+    protected static function replace_slide_items(string $xml, array $broken): string {
+        if (!$broken) {
+            return $xml;
+        }
+        $result = preg_replace_callback('#<p:pic\b.*?</p:pic>#s', function ($m) use ($broken) {
+            if (!preg_match_all('#\br:(?:link|embed|id)="([^"]+)"#', $m[0], $ids)) {
+                return $m[0];
+            }
+            $sentence = null;
+            foreach ($ids[1] as $id) {
+                $sentence = $sentence ?? ($broken[$id] ?? null);
+            }
+            if ($sentence === null) {
+                return $m[0];
+            }
+            $id = preg_match('#<p:cNvPr\b[^>]*\bid="(\d+)"#', $m[0], $c) ? $c[1] : '0';
+            $sppr = preg_match('#<p:spPr\b.*?</p:spPr>#s', $m[0], $sp) ? $sp[0] : '<p:spPr/>';
+            $descr = htmlspecialchars($sentence, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+            return '<p:pic><p:nvPicPr><p:cNvPr id="' . $id . '" name="Missing item" descr="' . $descr . '"/><p:cNvPicPr/>' .
+                '<p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="' . self::PLACEHOLDER_ID . '"/><a:stretch><a:fillRect/>' .
+                '</a:stretch></p:blipFill>' . $sppr . '</p:pic>';
+        }, $xml);
+        return $result ?? $xml;
+    }
+
+    /**
+     * The part's relationships with the placeholder picture added and the replaced broken items' links removed.
+     *
+     * @param string $rels
+     * @param string $xml The part after replacement.
+     * @param string[] $brokenids
+     * @param string $target Placeholder path relative to the part.
+     * @return string
+     */
+    protected static function placeholder_rels(string $rels, string $xml, array $brokenids, string $target): string {
+        foreach ($brokenids as $id) {
+            if (strpos($xml, '"' . $id . '"') === false) {
+                $rels = preg_replace('#<(?:\w+:)?Relationship\b[^>]*\bId="' . preg_quote($id, '#') . '"[^>]*/>#', '', $rels);
+            }
+        }
+        if (strpos($rels, 'Id="' . self::PLACEHOLDER_ID . '"') === false) {
+            $rels = str_replace('</Relationships>', '<Relationship Id="' . self::PLACEHOLDER_ID . '" Type="' .
+                'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' . $target . '"/>' .
+                '</Relationships>', $rels);
+        }
+        return $rels;
     }
 }

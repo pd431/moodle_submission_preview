@@ -286,4 +286,99 @@ final class preview_test extends \advanced_testcase {
         $this->assertStringNotContainsString('webVideoPr', $xml);
         $this->assertNull(preview_copy::prepare($this->fixture('youtube-video.docx')));
     }
+
+    /**
+     * Open a prepared copy and return its parts.
+     *
+     * @param string $path
+     * @param string[] $names
+     * @return array name => content
+     */
+    protected function parts(string $path, array $names): array {
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($path, \ZipArchive::CHECKCONS));
+        $out = [];
+        foreach ($names as $name) {
+            $out[$name] = $zip->getFromName($name);
+        }
+        $zip->close();
+        unlink($path);
+        return $out;
+    }
+
+    /**
+     * The converter's copy of a Word document has an embedded placeholder picture in place of the linked one, with the
+     * missing-item sentence as alternative text, and no link left to the replaced item.
+     */
+    public function test_converter_copy_word(): void {
+        $path = preview_copy::prepare_for_converter($this->fixture('linked-image.docx'));
+        $this->assertNotNull($path);
+        $parts = $this->parts($path, ['word/document.xml', 'word/_rels/document.xml.rels',
+            'word/media/' . preview_copy::PLACEHOLDER_NAME, '[Content_Types].xml']);
+        $this->assertSame(1, substr_count($parts['word/document.xml'], 'r:embed="' . preview_copy::PLACEHOLDER_ID . '"'));
+        $this->assertStringContainsString(
+            'descr="graph1.png is not included in this document. A marker will not see it."',
+            $parts['word/document.xml']
+        );
+        $this->assertStringNotContainsString('r:link=', $parts['word/document.xml']);
+        $this->assertStringContainsString('Id="' . preview_copy::PLACEHOLDER_ID . '"', $parts['word/_rels/document.xml.rels']);
+        $this->assertStringNotContainsString('graph1.png', $parts['word/_rels/document.xml.rels']);
+        $this->assertNotEmpty($parts['word/media/' . preview_copy::PLACEHOLDER_NAME]);
+        $this->assertStringContainsString('Extension="png"', $parts['[Content_Types].xml']);
+        $this->assertNull(preview_copy::prepare_for_converter($this->fixture('essay.docx')));
+    }
+
+    /**
+     * The converter's copy of a presentation has the linked picture replaced at its place and size.
+     */
+    public function test_converter_copy_slides(): void {
+        $path = preview_copy::prepare_for_converter($this->fixture('linked-media.pptx'));
+        $this->assertNotNull($path);
+        $parts = $this->parts($path, ['ppt/slides/slide1.xml', 'ppt/slides/_rels/slide1.xml.rels',
+            'ppt/media/' . preview_copy::PLACEHOLDER_NAME]);
+        $slide = $parts['ppt/slides/slide1.xml'];
+        $this->assertSame(1, substr_count($slide, 'r:embed="' . preview_copy::PLACEHOLDER_ID . '"'));
+        $this->assertStringContainsString('<a:ext cx="3048000" cy="1714500"/>', $slide);
+        $this->assertStringNotContainsString('r:link="rId2"', $slide);
+        $this->assertStringNotContainsString('Id="rId2"', $parts['ppt/slides/_rels/slide1.xml.rels']);
+        $this->assertNotEmpty($parts['ppt/media/' . preview_copy::PLACEHOLDER_NAME]);
+        $doc = new \DOMDocument();
+        $this->assertTrue($doc->loadXML($slide));
+    }
+
+    /**
+     * Converting hands the stand-in the copy, keeps the student's file unchanged, and deletes the temporary copy after
+     * success and after failure; when the copy cannot be made, the file itself is handed over.
+     */
+    public function test_convert_hands_over_the_copy(): void {
+        testing::set('converter_down', false);
+        testing::set('test_converter', true);
+        $file = $this->fixture('linked-image.docx');
+        $hash = $file->get_contenthash();
+        preview::convert($file);
+        $handed = preview::stored($file, preview::AREA_HANDED);
+        $this->assertNotNull($handed);
+        $this->assertNotSame($hash, $handed->get_contenthash());
+        $this->assertSame($hash, get_file_storage()->get_file_by_id($file->get_id())->get_contenthash());
+        $this->assertNull(preview::stored($file, preview::AREA_COPY));
+
+        testing::set('converter_fails', true);
+        try {
+            preview::convert($file);
+            $this->fail('The stand-in converter should have failed.');
+        } catch (\coding_exception $e) {
+            $this->assertNull(preview::stored($file, preview::AREA_COPY));
+        }
+        testing::set('converter_fails', false);
+
+        testing::set('copy_fails', true);
+        preview::convert($file);
+        $this->assertDebuggingCalled();
+        $this->assertSame($hash, preview::stored($file, preview::AREA_HANDED)->get_contenthash());
+
+        $clean = $this->fixture('essay.docx');
+        testing::set('copy_fails', false);
+        preview::convert($clean);
+        $this->assertSame($clean->get_contenthash(), preview::stored($clean, preview::AREA_HANDED)->get_contenthash());
+    }
 }

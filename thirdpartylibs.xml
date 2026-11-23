@@ -12,7 +12,7 @@
   <library>
     <location>templates/missing_item.mustache</location>
     <name>Font Awesome Free icon "file-circle-xmark"</name>
-    <description>The broken-file icon in the missing-item box, inlined as SVG because the box is drawn inside sandboxed previews that load no fonts.</description>
+    <description>The broken-file icon in the missing-item box, inlined as SVG because the box is drawn inside sandboxed previews that load no fonts; also drawn into pix/missing.png, the placeholder picture put in the copy handed to the converter.</description>
     <version>6.5.2</version>
     <license>CC BY</license>
     <licenseversion>4.0</licenseversion>

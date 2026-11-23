@@ -77,6 +77,15 @@ class preview {
     /** Word documents the browser renderer draws. */
     public const DOCX_EXTENSIONS = ['docx', 'docm', 'dotx', 'dotm'];
 
+    /** File area: the temporary copy handed to the converter (deleted once converted). */
+    public const AREA_COPY = 'convertcopy';
+    /** File area: the converter's PDF of a copy, kept against the submitted file. */
+    public const AREA_CONVERTED = 'convertedpdf';
+    /** File area: what the stand-in converter was handed (tests only). */
+    public const AREA_HANDED = 'testhanded';
+    /** File area: the stand-in converter's PDF (tests only). */
+    public const AREA_TEST = 'testpreview';
+
     /** Biggest file the plugin's own renderers take. */
     public const MAX_BUNDLED_BYTES = 20971520;
 
@@ -128,7 +137,17 @@ class preview {
             return null;
         }
         if (testing::use_test_converter()) {
-            return self::test_preview($file) ? self::status(self::READY, self::KIND_PDF) : null;
+            if (!self::stored($file, self::AREA_TEST) && $start) {
+                try {
+                    self::convert($file);
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            }
+            return self::stored($file, self::AREA_TEST) ? self::status(self::READY, self::KIND_PDF) : null;
+        }
+        if (self::stored($file, self::AREA_CONVERTED)) {
+            return self::status(self::READY, self::KIND_PDF);
         }
         $converter = new converter();
         if (!$converter->can_convert_storedfile_to($file, 'pdf')) {
@@ -203,10 +222,122 @@ class preview {
      * @param \stored_file $file
      */
     public static function convert(\stored_file $file): void {
-        $converter = new converter();
-        if ($converter->can_convert_storedfile_to($file, 'pdf')) {
-            $converter->start_conversion($file, 'pdf');
+        $source = self::converter_source($file);
+        try {
+            self::run_converter($file, $source);
+        } finally {
+            if ($source !== $file) {
+                $source->delete();
+            }
         }
+    }
+
+    /**
+     * What to hand the converter: a copy with each broken item replaced by a placeholder picture when the file has
+     * broken items (kept for the conversion as a temporary stored file), otherwise the file itself. If the copy cannot
+     * be made, the file itself, as before.
+     *
+     * @param \stored_file $file
+     * @return \stored_file
+     */
+    protected static function converter_source(\stored_file $file): \stored_file {
+        try {
+            $path = preview_copy::prepare_for_converter($file);
+        } catch (\Throwable $e) {
+            debugging(
+                'Submission checks could not prepare ' . $file->get_filename() . ' for the converter: ' . $e->getMessage(),
+                DEBUG_DEVELOPER
+            );
+            return $file;
+        }
+        if ($path === null) {
+            return $file;
+        }
+        try {
+            $fs = get_file_storage();
+            $record = self::record($file, self::AREA_COPY, $file->get_filename());
+            if ($old = $fs->get_file(...array_values($record))) {
+                $old->delete();
+            }
+            return $fs->create_file_from_pathname($record, $path);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * Convert. A copy's PDF is kept against the submitted file, since the copy goes once converted; if the copy does
+     * not convert, the file itself is converted.
+     *
+     * @param \stored_file $file The submitted file.
+     * @param \stored_file $source What the converter is handed.
+     */
+    protected static function run_converter(\stored_file $file, \stored_file $source): void {
+        $fs = get_file_storage();
+        if (testing::use_test_converter()) {
+            if (testing::converter_fails()) {
+                throw new \coding_exception('The stand-in converter failed (test switch).');
+            }
+            // Keep what the stand-in was handed, so tests can look at it.
+            $record = self::record($file, self::AREA_HANDED, $file->get_filename());
+            if ($old = $fs->get_file(...array_values($record))) {
+                $old->delete();
+            }
+            $fs->create_file_from_storedfile($record, $source);
+            self::test_preview($file);
+            return;
+        }
+        $converter = new converter();
+        if (!$converter->can_convert_storedfile_to($source, 'pdf')) {
+            return;
+        }
+        $conversion = $converter->start_conversion($source, 'pdf');
+        if ($source === $file) {
+            return;
+        }
+        if ($conversion->get('status') == conversion::STATUS_COMPLETE && ($dest = $conversion->get_destfile())) {
+            $fs->create_file_from_storedfile(self::record($file, self::AREA_CONVERTED, 'preview.pdf'), $dest);
+            return;
+        }
+        $converter->start_conversion($file, 'pdf');
+    }
+
+    /**
+     * A file record in one of the plugin's preview areas, against a submitted file.
+     *
+     * @param \stored_file $file
+     * @param string $area
+     * @param string $filename
+     * @return array
+     */
+    protected static function record(\stored_file $file, string $area, string $filename): array {
+        return [
+            'contextid' => \context_system::instance()->id,
+            'component' => 'local_submissioncheck',
+            'filearea' => $area,
+            'itemid' => $file->get_id(),
+            'filepath' => '/',
+            'filename' => $filename,
+        ];
+    }
+
+    /**
+     * A file kept in one of the plugin's preview areas for a submitted file.
+     *
+     * @param \stored_file $file
+     * @param string $area
+     * @return \stored_file|null
+     */
+    public static function stored(\stored_file $file, string $area): ?\stored_file {
+        $files = get_file_storage()->get_area_files(
+            \context_system::instance()->id,
+            'local_submissioncheck',
+            $area,
+            $file->get_id(),
+            'id',
+            false
+        );
+        return $files ? reset($files) : null;
     }
 
     /**
@@ -226,7 +357,10 @@ class preview {
             return $file;
         }
         if (testing::use_test_converter() && !testing::converter_down()) {
-            return self::test_preview($file);
+            return self::stored($file, self::AREA_TEST);
+        }
+        if ($converted = self::stored($file, self::AREA_CONVERTED)) {
+            return $converted;
         }
         $conversions = conversion::get_conversions_for_file($file, 'pdf');
         foreach ($conversions as $conversion) {

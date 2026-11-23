@@ -136,6 +136,103 @@ class behat_local_submissioncheck extends behat_base {
     }
 
     /**
+     * The latest submitted copy of a file in an assignment submission.
+     *
+     * @param string $filename
+     * @return stored_file
+     */
+    protected function submitted_file(string $filename): stored_file {
+        global $DB;
+        $id = $DB->get_field_sql("SELECT MAX(id) FROM {files} WHERE component = 'assignsubmission_file'
+            AND filearea = 'submission_files' AND filename = ?", [$filename]);
+        if (!$id) {
+            throw new ExpectationException("No submitted file $filename", $this->getSession());
+        }
+        return get_file_storage()->get_file_by_id($id);
+    }
+
+    /**
+     * What the stand-in converter was handed for a submitted file.
+     *
+     * @param string $filename
+     * @return stored_file
+     */
+    protected function handed_file(string $filename): stored_file {
+        $handed = \local_submissioncheck\local\preview::stored(
+            $this->submitted_file($filename),
+            \local_submissioncheck\local\preview::AREA_HANDED
+        );
+        if (!$handed) {
+            throw new ExpectationException("Nothing was handed to the converter for $filename", $this->getSession());
+        }
+        return $handed;
+    }
+
+    /**
+     * The converter was handed a copy with placeholder pictures in place of linked items.
+     *
+     * @Then /^the file handed to the converter for "([^"]*)" should have (\d+) placeholder pictures? and no linked items$/
+     * @param string $filename
+     * @param int $count
+     */
+    public function the_handed_file_should_have_placeholders(string $filename, int $count) {
+        $handed = $this->handed_file($filename);
+        $path = $handed->copy_content_to_temp('local_submissioncheck');
+        $zip = new ZipArchive();
+        if ($zip->open($path, ZipArchive::CHECKCONS) !== true) {
+            throw new ExpectationException("The handed file for $filename is not a valid package", $this->getSession());
+        }
+        $placeholders = 0;
+        $linked = 0;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = (string) $zip->getNameIndex($i);
+            if (!preg_match('#^(word/(document|header\d*|footer\d*)|ppt/slides/slide\d+)\.xml$#', $name)) {
+                continue;
+            }
+            $xml = (string) $zip->getFromName($name);
+            $placeholders += substr_count($xml, 'r:embed="' . \local_submissioncheck\local\preview_copy::PLACEHOLDER_ID . '"');
+            $rels = (string) $zip->getFromName(dirname($name) . '/_rels/' . basename($name) . '.rels');
+            $external = \local_submissioncheck\local\preview_copy::linked_targets($rels)
+                + \local_submissioncheck\local\preview_copy::cloud_targets($rels);
+            foreach (array_keys($external) as $id) {
+                $linked += substr_count($xml, '"' . $id . '"');
+            }
+        }
+        $zip->close();
+        @unlink($path);
+        if ($placeholders !== $count || $linked !== 0) {
+            throw new ExpectationException("The handed file for $filename has $placeholders placeholder pictures and " .
+                "$linked linked items", $this->getSession());
+        }
+    }
+
+    /**
+     * The converter was handed the submitted file itself.
+     *
+     * @Then /^the file handed to the converter for "(?P<file>[^"]*)" should be the submitted file$/
+     * @param string $filename
+     */
+    public function the_handed_file_should_be_the_submitted_file(string $filename) {
+        if ($this->handed_file($filename)->get_contenthash() !== $this->submitted_file($filename)->get_contenthash()) {
+            throw new ExpectationException("The converter was not handed $filename itself", $this->getSession());
+        }
+    }
+
+    /**
+     * The submitted file is byte for byte the uploaded fixture.
+     *
+     * @Then /^the submitted file "(?P<file>[^"]*)" should be unchanged$/
+     * @param string $filename
+     */
+    public function the_submitted_file_should_be_unchanged(string $filename) {
+        global $CFG;
+        $fixture = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/' . $filename;
+        if ($this->submitted_file($filename)->get_contenthash() !== sha1_file($fixture)) {
+            throw new ExpectationException("The submitted $filename differs from the upload", $this->getSession());
+        }
+    }
+
+    /**
      * A Word document drawn in the browser does not contain some text.
      *
      * @Then /^the Word preview of "(?P<file>[^"]*)" should not show "(?P<text>[^"]*)"$/
