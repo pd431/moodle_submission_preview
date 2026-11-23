@@ -17,25 +17,24 @@
 {{!
     @template local_submissioncheck/broken_item
 
-    One broken item in the side list: its name, then its short reason and place. A button that shows it in the preview
-    when the preview marks it; plain text otherwise. A whole-file problem has a sentence as its name and no reason.
+    One broken item in the side list, placed inside its list item by file_checks: its name, then its short reason and
+    place. A button that shows it in the preview when the preview marks it; plain text otherwise. A whole-file problem
+    has a sentence as its name and no reason.
 
     Example context (json):
     {"name": "graph1.png", "reason": "Not in the file: on your computer", "place": "slide 2", "jump": true,
         "anchor": "broken-1"}
 }}
-<li>
-    {{#jump}}
-    <button type="button" class="local-submissioncheck-jump" data-action="local-submissioncheck-jump" data-name="{{name}}"
-            data-anchor="{{anchor}}" data-preview="{{previewlabel}}">
-        <strong>{{name}}</strong>
-        {{#reason}}<span class="local-submissioncheck-reason">{{reason}}{{#place}} · {{place}}{{/place}}</span>{{/reason}}
-    </button>
-    {{/jump}}
-    {{^jump}}
-    <span class="local-submissioncheck-item">
-        <strong>{{name}}</strong>
-        {{#reason}}<span class="local-submissioncheck-reason">{{reason}}{{#place}} · {{place}}{{/place}}</span>{{/reason}}
-    </span>
-    {{/jump}}
-</li>
+{{#jump}}
+<button type="button" class="local-submissioncheck-jump" data-action="local-submissioncheck-jump" data-name="{{name}}"
+        data-anchor="{{anchor}}" data-preview="{{previewlabel}}">
+    <strong>{{name}}</strong>
+    {{#reason}}<span class="local-submissioncheck-reason">{{reason}}{{#place}} · {{place}}{{/place}}</span>{{/reason}}
+</button>
+{{/jump}}
+{{^jump}}
+<span class="local-submissioncheck-item">
+    <strong>{{name}}</strong>
+    {{#reason}}<span class="local-submissioncheck-reason">{{reason}}{{#place}} · {{place}}{{/place}}</span>{{/reason}}
+</span>
+{{/jump}}
