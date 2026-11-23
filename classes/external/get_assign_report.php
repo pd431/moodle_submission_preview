@@ -20,10 +20,10 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
-use local_submissioncheck\local\adapter\assign as assign_adapter;
+use local_submissioncheck\output\review_page;
 
 /**
- * The check report for the current user on an assignment, re-rendered while a preview is being made.
+ * The review page content for the current user on an assignment, re-rendered while a preview is being made.
  *
  * @package    local_submissioncheck
  * @copyright  2026 Pierre Camaly de Brosses - University of Exeter
@@ -53,12 +53,12 @@ class get_assign_report extends external_api {
         [, $cm] = get_course_and_cm_from_cmid($cmid, 'assign');
         self::validate_context($cm->context);
         require_capability('mod/assign:submit', $cm->context);
-        $data = assign_adapter::report($cm, (int) $USER->id);
+        $data = review_page::data($cm, (int) $USER->id);
         if (!$data) {
             return ['html' => '', 'pending' => false];
         }
         return [
-            'html' => $OUTPUT->render_from_template('local_submissioncheck/assign_report', $data),
+            'html' => $OUTPUT->render_from_template('local_submissioncheck/review', $data),
             'pending' => (bool) $data['pending'],
         ];
     }

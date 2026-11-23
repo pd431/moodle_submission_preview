@@ -19,6 +19,7 @@ namespace local_submissioncheck\local\checks;
 use local_submissioncheck\local\check;
 use local_submissioncheck\local\finding;
 use local_submissioncheck\local\inspected_file;
+use local_submissioncheck\local\package_text;
 
 /**
  * Whether a document has any text in it, such as a blank template saved by mistake.
@@ -85,20 +86,17 @@ class empty_text extends check {
             case inspected_file::TYPE_TEXT:
                 return self::count_words($file->read_all());
             case inspected_file::TYPE_ODF:
-                $xml = $file->read_entry('content.xml');
-                if ($xml === null) {
-                    return null;
-                }
-                $body = preg_match('#<office:body>(.*)</office:body>#s', $xml, $m) ? $m[1] : $xml;
-                $body = preg_replace('#<(text:s|text:tab|text:line-break)[^>]*/>#', ' ', $body);
-                $body = preg_replace('#</text:(p|h)>#', ' ', $body);
-                return self::count_words(strip_tags($body));
             case inspected_file::TYPE_OOXML:
-                if ($file->read_entry('word/document.xml', 1) !== null) {
-                    return $this->count_tagged($file, ['word/document.xml'], 'w:t');
+                $sections = package_text::sections($file, self::MAX_PARTS);
+                if ($sections !== null) {
+                    $words = 0;
+                    foreach ($sections as $section) {
+                        $words += self::count_words(implode(' ', $section['paragraphs']));
+                    }
+                    return $words;
                 }
-                if ($file->find_entries('#^ppt/slides/slide\d+\.xml$#')) {
-                    return $this->count_tagged($file, $file->find_entries('#^ppt/slides/slide\d+\.xml$#'), 'a:t');
+                if ($file->get_type() === inspected_file::TYPE_ODF) {
+                    return null;
                 }
                 if ($file->find_entries('#^xl/worksheets/[^/]+\.xml$#')) {
                     foreach (array_slice($file->find_entries('#^xl/worksheets/[^/]+\.xml$#'), 0, self::MAX_PARTS) as $sheet) {
@@ -112,34 +110,6 @@ class empty_text extends check {
                 return null;
         }
         return null;
-    }
-
-    /**
-     * Words inside one kind of text element across parts.
-     *
-     * @param inspected_file $file
-     * @param string[] $parts
-     * @param string $tag
-     * @return int
-     */
-    protected function count_tagged(inspected_file $file, array $parts, string $tag): int {
-        $total = 0;
-        foreach (array_slice($parts, 0, self::MAX_PARTS) as $part) {
-            $xml = (string) $file->read_entry($part);
-            if (
-                preg_match_all(
-                    '#<' . preg_quote($tag, '#') . '(?:\s[^>]*)?>([^<]*)</' . preg_quote($tag, '#') . '>#',
-                    $xml,
-                    $matches
-                )
-            ) {
-                $total += self::count_words(implode(' ', $matches[1]));
-                if ($total > 0) {
-                    return $total;
-                }
-            }
-        }
-        return $total;
     }
 
     /**

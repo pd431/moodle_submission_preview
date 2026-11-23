@@ -17,13 +17,11 @@
 {{!
     @template local_submissioncheck/quiz_summary
 
-    Checks and previews for every attachment on the quiz summary page, with the acknowledgement.
+    Checks and previews for every attachment on the quiz summary page. Finishing with problems asks twice (quiz.js).
 
     Example context (json):
     {
         "uniqid": "local-submissioncheck-2", "needsack": true, "nearend": false, "acknowledged": false,
-        "acklabel": "I have read these warnings and still want to submit these files",
-        "ackrequired": "Please read the warnings about your files and tick the box to confirm before finishing.",
         "nearendmessage": "The time limit is close, so you can finish without confirming.",
         "disclaimer": "This is an approximate preview of your document(s).", "files": []
     }
@@ -34,12 +32,5 @@
         <h3 id="{{uniqid}}-heading" class="h4 card-title">{{#str}}quizsummaryheading, local_submissioncheck{{/str}}</h3>
         {{> local_submissioncheck/files }}
         {{#nearend}}<p class="alert alert-info">{{nearendmessage}}</p>{{/nearend}}
-        {{#needsack}}
-        <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" id="{{uniqid}}-ack" data-region="local-submissioncheck-ack">
-            <label class="form-check-label" for="{{uniqid}}-ack">{{acklabel}}</label>
-        </div>
-        <p class="alert alert-danger d-none" role="alert" data-region="local-submissioncheck-ackrequired">{{ackrequired}}</p>
-        {{/needsack}}
     </div>
 </section>

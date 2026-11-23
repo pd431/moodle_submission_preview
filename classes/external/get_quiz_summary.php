@@ -59,6 +59,7 @@ class get_quiz_summary extends external_api {
         return [
             'html' => $data['hasfiles'] ? $OUTPUT->render_from_template('local_submissioncheck/quiz_summary', $data) : '',
             'needsack' => (bool) $data['needsack'],
+            'armedlabel' => $data['armedlabel'],
             'pending' => (bool) $data['pending'],
         ];
     }
@@ -71,7 +72,8 @@ class get_quiz_summary extends external_api {
     public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'html' => new external_value(PARAM_RAW, 'Report HTML, empty when nothing is attached'),
-            'needsack' => new external_value(PARAM_BOOL, 'Whether finishing should ask for the acknowledgement'),
+            'needsack' => new external_value(PARAM_BOOL, 'Whether finishing should ask twice'),
+            'armedlabel' => new external_value(PARAM_TEXT, 'Label of the finish button for the second press'),
             'pending' => new external_value(PARAM_BOOL, 'Whether a preview is still being prepared'),
         ]);
     }

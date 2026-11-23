@@ -1,0 +1,82 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_submissioncheck/file_preview
+
+    One file's preview, in the form its kind allows, or why there is none.
+
+    Example context (json):
+    {"previewlabel": "Preview of essay.docx", "previewready": true, "previewpdf": true, "previewurl": "#",
+        "openpreview": "Open the preview of essay.docx"}
+}}
+<div class="local-submissioncheck-preview mb-3" role="region" aria-label="{{previewlabel}}"
+     {{#previewpending}}data-pending="1"{{/previewpending}}>
+    <h4 class="sr-only visually-hidden">{{previewlabel}}</h4>
+    {{#previewready}}
+        {{#previewpdf}}
+        <object class="local-submissioncheck-pdf w-100 border" data="{{previewurl}}" type="application/pdf"
+                aria-label="{{previewlabel}}" style="height: 70vh;">
+            <p><a href="{{previewurl}}" target="_blank">{{openpreview}}</a></p>
+        </object>
+        <p class="small mb-0"><a href="{{previewurl}}" target="_blank">{{openpreview}}</a></p>
+        {{/previewpdf}}
+        {{#previewimage}}
+        <img class="img-fluid border" src="{{previewurl}}" alt="{{previewlabel}}">
+        {{/previewimage}}
+        {{#previewvideo}}
+        <video class="local-submissioncheck-media w-100 border" controls preload="metadata" src="{{previewurl}}"
+               aria-label="{{previewlabel}}"></video>
+        {{/previewvideo}}
+        {{#previewaudio}}
+        <audio class="w-100" controls preload="metadata" src="{{previewurl}}" aria-label="{{previewlabel}}"></audio>
+        {{/previewaudio}}
+        {{#previewhtml}}
+        {{#previewtextonly}}<p class="small text-muted mb-1">{{previewtextonlymessage}}</p>{{/previewtextonly}}
+        <iframe class="local-submissioncheck-frame w-100 border" sandbox="" src="{{previewurl}}" title="{{previewlabel}}"
+                data-region="local-submissioncheck-frame"></iframe>
+        <p class="small mb-0"><a href="{{previewurl}}" target="_blank">{{openpreview}}</a></p>
+        {{/previewhtml}}
+        {{#previewdocx}}
+        <div class="local-submissioncheck-docx border" data-region="local-submissioncheck-docx" data-url="{{previewurl}}"
+             data-label="{{previewlabel}}" data-failed="{{previewdrawfailedmessage}}" data-brokentargets="{{brokentargets}}">
+            <p class="text-muted m-2" role="status">{{previewloadingmessage}}</p>
+        </div>
+        {{/previewdocx}}
+    {{/previewready}}
+    {{#previewpending}}<div class="local-submissioncheck-state"><p role="status">{{previewpendingmessage}}</p></div>{{/previewpending}}
+    {{#previewtoolarge}}<div class="local-submissioncheck-state"><p>{{previewtoolargemessage}}</p></div>{{/previewtoolarge}}
+    {{#frameunreadable}}
+    <div class="local-submissioncheck-state local-submissioncheck-state-broken">
+        {{#pix}}i/warning, core{{/pix}}
+        <p class="local-submissioncheck-statetitle">{{#str}}frameunreadable, local_submissioncheck{{/str}}</p>
+        <p>{{#str}}framecorrupt, local_submissioncheck{{/str}}</p>
+    </div>
+    {{/frameunreadable}}
+    {{#frameprotected}}
+    <div class="local-submissioncheck-state local-submissioncheck-state-broken">
+        {{#pix}}i/warning, core{{/pix}}
+        <p class="local-submissioncheck-statetitle">{{#str}}frameprotected, local_submissioncheck{{/str}}</p>
+        <p>{{#str}}frameprotectedmarker, local_submissioncheck{{/str}}</p>
+    </div>
+    {{/frameprotected}}
+    {{#framenotype}}
+    <div class="local-submissioncheck-state">
+        <p class="local-submissioncheck-statetitle">{{#str}}framenotype, local_submissioncheck{{/str}}</p>
+        <p>{{#str}}framecheckfile, local_submissioncheck{{/str}}</p>
+    </div>
+    {{/framenotype}}
+</div>

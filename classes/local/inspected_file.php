@@ -54,6 +54,18 @@ class inspected_file {
     public const TYPE_PNG = 'png';
     /** @var string */
     public const TYPE_GIF = 'gif';
+    /** @var string WebP picture. */
+    public const TYPE_WEBP = 'webp';
+    /** @var string MPEG-4 or QuickTime video or sound (mp4, m4v, m4a, mov). */
+    public const TYPE_MP4 = 'mp4';
+    /** @var string WebM or Matroska video. */
+    public const TYPE_WEBM = 'webm';
+    /** @var string MP3 sound. */
+    public const TYPE_MP3 = 'mp3';
+    /** @var string WAV sound. */
+    public const TYPE_WAV = 'wav';
+    /** @var string Ogg sound. */
+    public const TYPE_OGG = 'ogg';
     /** @var string */
     public const TYPE_RTF = 'rtf';
     /** @var string */
@@ -149,6 +161,15 @@ class inspected_file {
     public function get_extension(): string {
         $pos = strrpos($this->filename, '.');
         return $pos === false ? '' : \core_text::strtolower(substr($this->filename, $pos + 1));
+    }
+
+    /**
+     * Local path to the content.
+     *
+     * @return string
+     */
+    public function get_path(): string {
+        return $this->path;
     }
 
     /**
@@ -258,11 +279,39 @@ class inspected_file {
             return self::TYPE_EMPTY;
         }
         $head = $this->head(2048);
+        $type = self::type_from_head($head);
+        if ($type === self::TYPE_ZIP) {
+            return $this->detect_package_type();
+        }
+        if ($type !== self::TYPE_UNKNOWN) {
+            return $type;
+        }
+        $text = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $head));
+        if (
+            $this->size < 4096 && strpos($text, '{') === 0 && preg_match('/"(doc_id|resource_id)"\s*:/', $text)
+                && preg_match('/google\.com/', $text)
+        ) {
+            return self::TYPE_GOOGLE;
+        }
+        if (preg_match('//u', substr($head, 0, 1500)) && !preg_match('/[\x00-\x08\x0E-\x1F]/', $head)) {
+            return self::TYPE_TEXT;
+        }
+        return self::TYPE_UNKNOWN;
+    }
+
+    /**
+     * What the first bytes of a file say it is. A zip package comes back as TYPE_ZIP; telling apart its kinds needs
+     * its entries. Text that isn't one of the marked kinds comes back as TYPE_UNKNOWN.
+     *
+     * @param string $head The first bytes of the file (up to 2048 are used).
+     * @return string One of the TYPE_ constants.
+     */
+    public static function type_from_head(string $head): string {
         if (strpos(substr($head, 0, 1024), '%PDF-') !== false) {
             return self::TYPE_PDF;
         }
         if (strncmp($head, "PK\x03\x04", 4) === 0 || strncmp($head, "PK\x05\x06", 4) === 0) {
-            return $this->detect_package_type();
+            return self::TYPE_ZIP;
         }
         if (strncmp($head, "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1", 8) === 0) {
             return self::TYPE_OLE;
@@ -279,6 +328,10 @@ class inspected_file {
         if (strncmp($head, "L\x00\x00\x00\x01\x14\x02\x00", 8) === 0) {
             return self::TYPE_LNK;
         }
+        $media = self::media_type_from_head($head);
+        if ($media !== null) {
+            return $media;
+        }
         $text = ltrim(preg_replace('/^\xEF\xBB\xBF/', '', $head));
         if (strncmp($text, '{\\rtf', 5) === 0) {
             return self::TYPE_RTF;
@@ -290,16 +343,39 @@ class inspected_file {
         if (strpos($lower, '<!doctype html') === 0 || strpos($lower, '<html') !== false) {
             return self::TYPE_HTML;
         }
-        if (
-            $this->size < 4096 && strpos($text, '{') === 0 && preg_match('/"(doc_id|resource_id)"\s*:/', $text)
-                && preg_match('/google\.com/', $text)
-        ) {
-            return self::TYPE_GOOGLE;
-        }
-        if (preg_match('//u', substr($head, 0, 1500)) && !preg_match('/[\x00-\x08\x0E-\x1F]/', $head)) {
-            return self::TYPE_TEXT;
-        }
         return self::TYPE_UNKNOWN;
+    }
+
+    /**
+     * Pictures and media other than JPEG, PNG and GIF, from their first bytes.
+     *
+     * @param string $head
+     * @return string|null
+     */
+    protected static function media_type_from_head(string $head): ?string {
+        if (strncmp($head, 'RIFF', 4) === 0 && substr($head, 8, 4) === 'WEBP') {
+            return self::TYPE_WEBP;
+        }
+        if (strncmp($head, 'RIFF', 4) === 0 && substr($head, 8, 4) === 'WAVE') {
+            return self::TYPE_WAV;
+        }
+        if (substr($head, 4, 4) === 'ftyp') {
+            return self::TYPE_MP4;
+        }
+        if (strncmp($head, "\x1A\x45\xDF\xA3", 4) === 0) {
+            return self::TYPE_WEBM;
+        }
+        if (strncmp($head, 'OggS', 4) === 0) {
+            return self::TYPE_OGG;
+        }
+        // An MPEG audio Layer III frame: 11 sync bits, a version that is not reserved (bits 4-3 not 01), layer III
+        // (bits 2-1 = 01). Looser tests take other binary data (such as a UTF-16 text marker, FF FE) for sound.
+        $framesync = strlen($head) > 1 && $head[0] === "\xFF" && (ord($head[1]) & 0xE0) === 0xE0
+            && (ord($head[1]) & 0x18) !== 0x08 && (ord($head[1]) & 0x06) === 0x02;
+        if ($framesync || preg_match('/^ID3[\x02-\x04]\x00/', $head)) {
+            return self::TYPE_MP3;
+        }
+        return null;
     }
 
     /**

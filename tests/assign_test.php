@@ -157,11 +157,18 @@ final class assign_test extends \advanced_testcase {
 
         $report = assign_adapter::report($cm, (int) $this->student->id);
         $this->assertTrue($report['awaiting']);
-        $this->assertStringContainsString('You submitted this file at', $report['submitted']);
-        $this->assertStringContainsString('You have 15 minutes to confirm this is the file', $report['windowmessage']);
-        $this->assertSame(['graph1.png', 'interview.mp4'], array_column($report['files'][0]['findings'][0]['items'], 'name'));
+        $this->assertStringContainsString('unless you replace the file.', $report['submitted']);
+        $this->assertStringStartsWith('Confirm by ', $report['confirmby']);
+        $this->assertStringContainsString('<strong>Essay 1</strong>', $report['headinghtml']);
+        $this->assertSame(
+            [
+                ['graph1.png', 'Not in the file: on your computer', 'slide 1'],
+                ['interview.mp4', 'Not in the file: on your computer', 'slide 1'],
+            ],
+            array_map(fn($i) => [$i['name'], $i['reason'], $i['place']], $report['files'][0]['brokenshown'])
+        );
         $this->assertTrue($report['files'][0]['previewready']);
-        $this->assertStringContainsString('submit to RS101 Essay 1', $report['disclaimer']);
+        $this->assertSame('Previews are approximate.', $report['disclaimer']);
         $this->assertFalse($report['continuing']);
         // Seen once: coming back shows the banner.
         $this->assertTrue(assign_adapter::report($cm, (int) $this->student->id)['continuing']);
@@ -262,10 +269,13 @@ final class assign_test extends \advanced_testcase {
         testing::set('service_down', true);
         testing::set('converter_down', true);
         $cm = $this->make_assign();
-        $this->submit($cm, $this->student, ['essay.docx']);
+        $this->submit($cm, $this->student, ['essay.rtf', 'essay.docx']);
         $report = assign_adapter::report($cm, (int) $this->student->id);
-        $this->assertTrue($report['files'][0]['checksunavailable']);
-        $this->assertTrue($report['files'][0]['previewunavailable']);
+        $files = array_column($report['files'], null, 'name');
+        $this->assertTrue($files['essay.rtf']['checksunavailable']);
+        $this->assertTrue($files['essay.rtf']['framenotype']);
+        // Without the converter, a Word document is still drawn in the browser.
+        $this->assertTrue($files['essay.docx']['previewdocx']);
     }
 
     public function test_group_submission(): void {
@@ -304,5 +314,88 @@ final class assign_test extends \advanced_testcase {
         }
         $this->assertFalse($DB->record_exists('local_submissioncheck_upload', ['cmid' => $cm->id]));
         $this->assertFalse($DB->record_exists('local_submissioncheck_cfg', ['cmid' => $cm->id]));
+    }
+
+    /**
+     * The review page: a tab per file with its warning count, plural wording for several files, the confirm-by time
+     * and the viewed count.
+     */
+    public function test_review_page(): void {
+        $cm = $this->make_assign();
+        $this->submit($cm, $this->student, ['essay.docx', 'linked-media.pptx']);
+        $data = \local_submissioncheck\output\review_page::data($cm, (int) $this->student->id);
+        $this->assertTrue($data['multiple']);
+        $files = array_column($data['files'], null, 'name');
+        $this->assertSame('', $files['essay.docx']['tabstatus']);
+        $this->assertSame('2 broken', $files['linked-media.pptx']['tabstatus']);
+        $this->assertTrue($data['files'][0]['first']);
+        $this->assertSame('Viewed 1 of 2 files', $data['viewed']);
+        $this->assertSame('Yes, these are the files I intended to submit', $data['actions']['confirmlabel']);
+        $this->assertStringStartsWith('Confirm by ', $data['confirmby']);
+        $this->assertStringContainsString('unless you replace the files.', $data['submitted']);
+        $this->assertNotEmpty($files['essay.docx']['facts']);
+    }
+
+    /**
+     * Saving files sends the student to the review page once, for that upload only.
+     */
+    public function test_review_flag(): void {
+        $cm = $this->make_assign();
+        $this->submit($cm, $this->student, ['essay.docx']);
+        $this->assertTrue(assign_adapter::take_review_flag($cm, (int) $this->student->id));
+        $this->assertFalse(assign_adapter::take_review_flag($cm, (int) $this->student->id));
+    }
+
+    /**
+     * After answering, wording follows the number of files.
+     */
+    public function test_plural_outcome(): void {
+        $cm = $this->make_assign();
+        $this->submit($cm, $this->student, ['essay.docx', 'marks.xlsx']);
+        $record = $this->current($cm, $this->student);
+        \local_submissioncheck\local\confirmation::confirm($record, (int) $this->student->id);
+        $data = assign_adapter::report($cm, (int) $this->student->id);
+        $this->assertSame('You confirmed these files.', $data['statusmessage']);
+        $this->assertNull($data['actions']);
+    }
+
+    /**
+     * With problems, confirming needs a second press at least a second after the first: a single or a too-quick
+     * second press does not confirm. Without problems, one press is enough.
+     */
+    public function test_confirm_asks_twice_with_problems(): void {
+        global $SESSION;
+        $cm = $this->make_assign();
+        $this->submit($cm, $this->student, ['linked-media.pptx']);
+        $record = $this->current($cm, $this->student);
+        $this->assertFalse(confirmation::is_armed($record, true));
+        confirmation::arm($record);
+        $this->assertTrue(confirmation::is_armed_now($record));
+        $this->assertFalse(confirmation::is_armed($record, true));
+        $SESSION->local_submissioncheck_armed[(int) $record->id] -= 1.5;
+        $this->assertFalse(confirmation::is_armed($record, false));
+        $this->assertTrue(confirmation::is_armed($record, true));
+
+        $data = \local_submissioncheck\output\review_page::data($cm, (int) $this->student->id, true);
+        $this->assertTrue($data['actions']['armed']);
+        $this->assertSame('Click again to confirm with 2 broken items', $data['armedlabel']);
+
+        $clean = $this->make_assign(['name' => 'Essay 2']);
+        $this->submit($clean, $this->student, ['essay.docx']);
+        $this->assertTrue(confirmation::is_armed($this->current($clean, $this->student), false));
+    }
+
+    /**
+     * The follow-tags choice says what the tags give: on with the matching tag, off with none, or no tags set up.
+     */
+    public function test_follow_label(): void {
+        $cm = $this->make_assign();
+        set_config('defaulttags', 'summative, formative', 'local_submissioncheck');
+        $this->assertSame('Follow tags (off: no matching tag)', activation::follow_label($cm->id));
+        \core_tag_tag::set_item_tags('core', 'course_modules', $cm->id, \context_module::instance($cm->id), ['summative']);
+        $this->assertSame('Follow tags (on: tagged summative)', activation::follow_label($cm->id));
+        $this->assertSame('Follow tags (off: no matching tag)', activation::follow_label(0));
+        set_config('defaulttags', '', 'local_submissioncheck');
+        $this->assertSame('Follow tags (off: no tags set up)', activation::follow_label($cm->id));
     }
 }

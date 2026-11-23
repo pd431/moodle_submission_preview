@@ -242,4 +242,131 @@ final class checks_test extends \advanced_testcase {
             $this->assertStringNotContainsString('root:', $item);
         }
     }
+
+    /**
+     * Linked items carry the slide they are on, shown next to the name; the message is unchanged.
+     */
+    public function test_linked_media_slides(): void {
+        global $CFG;
+        $path = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/linked-media.pptx';
+        $findings = (new local\checks\linked_media())->run(new inspected_file($path, 'linked-media.pptx'));
+        $this->assertCount(1, $findings);
+        $this->assertSame(['graph1.png' => 1, 'interview.mp4' => 1], $findings[0]->params['slides']);
+        $this->assertSame(['graph1.png (slide 1)', 'interview.mp4 (slide 1)'], $findings[0]->item_labels());
+        $this->assertStringStartsWith('The following files have been linked', $findings[0]->get_message());
+
+        $content = '<office:document-content xmlns:office="o" xmlns:draw="d" xmlns:xlink="x"><office:body>' .
+            '<office:presentation><draw:page/><draw:page><draw:frame><draw:image xlink:href="../clip.mp4"/></draw:frame>' .
+            '</draw:page></office:presentation></office:body></office:document-content>';
+        $path = $this->package(['mimetype' => 'application/vnd.oasis.opendocument.presentation', 'content.xml' => $content]);
+        $this->assertSame(
+            [['name' => 'clip.mp4', 'slide' => 2]],
+            local\checks\linked_media::locate(new inspected_file($path, 'talk.odp'))
+        );
+
+        $path = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/linked-image.docx';
+        $this->assertSame(
+            [['name' => 'graph1.png', 'slide' => null]],
+            local\checks\linked_media::locate(new inspected_file($path, 'linked-image.docx'))
+        );
+    }
+
+    /**
+     * Sign-in storage: the setting's hosts and their sub-sites match; known services get a plain name.
+     */
+    public function test_signin_hosts(): void {
+        $this->resetAfterTest();
+        $media = local\checks\linked_media::class;
+        $this->assertTrue($media::is_signin_host('universityofexeteruk-my.sharepoint.com'));
+        $this->assertTrue($media::is_signin_host('sharepoint.com'));
+        $this->assertFalse($media::is_signin_host('notsharepoint.com'));
+        $this->assertFalse($media::is_signin_host('www.youtube.com'));
+        $this->assertSame('OneDrive', $media::service_name('example-my.sharepoint.com'));
+        $this->assertSame('SharePoint', $media::service_name('example.sharepoint.com'));
+        $this->assertSame('OneDrive', $media::service_name('1drv.ms'));
+        $this->assertSame('Google Drive', $media::service_name('docs.google.com'));
+        $this->assertSame('iCloud', $media::service_name('www.icloud.com'));
+        $this->assertSame('files.example.org', $media::service_name('files.example.org'));
+
+        set_config('signinhosts', "dropbox.com\nhttps://www.files.example.org/", 'local_submissioncheck');
+        $this->assertFalse($media::is_signin_host('example-my.sharepoint.com'));
+        $this->assertTrue($media::is_signin_host('www.dropbox.com'));
+        $this->assertTrue($media::is_signin_host('files.example.org'));
+    }
+
+    /**
+     * An online video on OneDrive is a warning named by its description; one on YouTube is not; a presentation's
+     * linked video on OneDrive is a warning with its slide.
+     */
+    public function test_online_video_findings(): void {
+        global $CFG;
+        $this->resetAfterTest();
+        $dir = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/';
+        $check = new local\checks\linked_media();
+
+        $findings = $check->run(new inspected_file($dir . 'sharepoint-video.docx', 'sharepoint-video.docx'));
+        $this->assertSame(['cloudmedia'], array_column(array_map(fn($f) => $f->to_array(), $findings), 'code'));
+        $this->assertSame(
+            ['untitled.mp4 is not included in this document. It is stored on OneDrive. A marker will not see it.'],
+            $findings[0]->item_labels()
+        );
+
+        $this->assertSame([], $check->run(new inspected_file($dir . 'youtube-video.docx', 'youtube-video.docx')));
+        $this->assertSame([], $check->run(new inspected_file($dir . 'essay.docx', 'essay.docx')));
+
+        $findings = $check->run(new inspected_file($dir . 'sharepoint-video.pptx', 'sharepoint-video.pptx'));
+        $this->assertCount(1, $findings);
+        $this->assertSame('cloudmedia', $findings[0]->code);
+        $this->assertStringContainsString(
+            'interview.mp4 (slide 1) is not included in this document. It is stored on OneDrive.',
+            implode(' ', $findings[0]->item_labels())
+        );
+    }
+
+    /**
+     * Content that matches no known kind under a name with a signature cannot be opened; plain text and other names
+     * keep their own results; a real MP3 is sound.
+     */
+    public function test_unrecognised_content(): void {
+        global $CFG;
+        $dir = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/';
+        $this->assertSame([['cannotopen'], []], $this->run_checks($dir . 'damaged-start.docx', 'damaged-start.docx'));
+        $this->assertSame([['cannotopen'], []], $this->run_checks($dir . 'noise.pdf', 'noise.pdf'));
+        $this->assertSame(['wrongextension'], $this->run_checks($dir . 'renamed.docx', 'renamed.docx')[0]);
+        $this->assertSame([[], []], $this->run_checks($dir . 'noise.pdf', 'noise.bin'));
+        $this->assertSame([[], []], $this->run_checks($dir . 'clip.mp3', 'clip.mp3'));
+        $this->assertSame(inspected_file::TYPE_MP3, (new inspected_file($dir . 'clip.mp3', 'clip.mp3'))->get_type());
+        $this->assertSame([[], []], $this->run_checks($dir . 'essay.docx', 'essay.docx'));
+        // What a real MP3 named .docx reports today (recorded, not changed in this build).
+        $this->assertSame([[], []], $this->run_checks($dir . 'clip.mp3', 'clip.docx'));
+    }
+
+    /**
+     * Text links to files on the student's computer or to sign-in storage are broken; public web and mail links are
+     * not; each broken item has a short reason.
+     */
+    public function test_broken_links(): void {
+        global $CFG;
+        $this->resetAfterTest();
+        $dir = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/';
+        $links = local\checks\linked_media::locate_links(new inspected_file($dir . 'broken-links.docx', 'broken-links.docx'));
+        $this->assertSame(['Reading list', 'My notes'], array_column($links, 'name'));
+        $this->assertSame(['SharePoint', null], array_column($links, 'host'));
+
+        $this->assertSame([], local\checks\linked_media::locate_links(new inspected_file($dir . 'public-link.docx', 'p.docx')));
+        $this->assertSame([], (new local\checks\linked_media())->run(new inspected_file($dir . 'public-link.docx', 'p.docx')));
+        // An online video's poster link is not a text link.
+        $video = new inspected_file($dir . 'sharepoint-video.docx', 'v.docx');
+        $this->assertSame([], local\checks\linked_media::locate_links($video));
+
+        $items = [];
+        foreach ((new local\checks\linked_media())->run(new inspected_file($dir . 'broken-links.docx', 'b.docx')) as $finding) {
+            $items = array_merge($items, $finding->broken_items());
+        }
+        $this->assertSame([
+            ['Not in the file: on your computer', 'graph1.png'],
+            ['Needs sign-in: SharePoint', 'Reading list'],
+            ['Link to a file on your computer', 'My notes'],
+        ], array_map(fn($i) => [$i['reason'], $i['name']], $items));
+    }
 }

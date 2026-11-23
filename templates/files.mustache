@@ -17,7 +17,7 @@
 {{!
     @template local_submissioncheck/files
 
-    Check results, then the approximate-preview notice, then a preview of each file.
+    Check results and facts, then the approximate-preview notice, then a preview of each file, stacked (quiz).
 
     Example context (json):
     {
@@ -30,50 +30,10 @@
     }
 }}
 {{#files}}
-<div class="local-submissioncheck-checks mb-3" role="region" aria-label="{{checkslabel}}">
-    {{#ok}}
-    <p class="local-submissioncheck-ok mb-1"><i class="icon fa fa-check text-success" aria-hidden="true"></i>{{okmessage}}</p>
-    {{/ok}}
-    {{#hasfindings}}
-    <div class="alert alert-warning mb-1">
-        <p class="mb-1"><strong>{{name}}</strong></p>
-        {{#findings}}
-        <p class="mb-1">{{message}}</p>
-        {{#hasitems}}
-        <ul class="mb-1">
-            {{#items}}<li>{{name}}</li>{{/items}}
-        </ul>
-        {{/hasitems}}
-        {{/findings}}
-    </div>
-    {{/hasfindings}}
-    {{#checksunavailable}}
-    <p class="alert alert-info mb-1">{{checksunavailablemessage}}</p>
-    {{/checksunavailable}}
-    {{#incomplete}}
-    <p class="text-muted mb-1">{{incompletemessage}}</p>
-    {{/incomplete}}
-</div>
+{{> local_submissioncheck/file_checks }}
+{{> local_submissioncheck/file_facts }}
 {{/files}}
 <p class="local-submissioncheck-disclaimer alert alert-info">{{disclaimer}}</p>
 {{#files}}
-<div class="local-submissioncheck-preview mb-3" role="region" aria-label="{{previewlabel}}"
-     {{#previewpending}}data-pending="1"{{/previewpending}}>
-    <h4 class="h6">{{previewlabel}}</h4>
-    {{#previewready}}
-        {{#previewpdf}}
-        <object class="local-submissioncheck-pdf w-100 border" data="{{previewurl}}" type="application/pdf"
-                aria-label="{{previewlabel}}" style="height: 70vh;">
-            <p><a href="{{previewurl}}" target="_blank">{{openpreview}}</a></p>
-        </object>
-        <p class="small mb-0"><a href="{{previewurl}}" target="_blank">{{openpreview}}</a></p>
-        {{/previewpdf}}
-        {{#previewimage}}
-        <img class="img-fluid border" src="{{previewurl}}" alt="{{previewlabel}}">
-        {{/previewimage}}
-    {{/previewready}}
-    {{#previewpending}}<p class="text-muted" role="status">{{previewpendingmessage}}</p>{{/previewpending}}
-    {{#previewunsupported}}<p class="text-muted">{{previewunsupportedmessage}}</p>{{/previewunsupported}}
-    {{#previewunavailable}}<p class="alert alert-info">{{previewunavailablemessage}}</p>{{/previewunavailable}}
-</div>
+{{> local_submissioncheck/file_preview }}
 {{/files}}

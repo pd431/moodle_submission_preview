@@ -75,7 +75,58 @@ class finding {
         if ($this->code === 'linkedmedia') {
             $params['link'] = (string) get_config('local_submissioncheck', 'helplink');
         }
-        return get_string('finding_' . $this->code, 'local_submissioncheck', (object) $params);
+        return get_string('finding_' . $this->code, 'local_submissioncheck', (object) array_filter($params, 'is_scalar'));
+    }
+
+    /**
+     * The listed items as shown to the student, with the slide each is on when the check found it.
+     *
+     * @return string[]
+     */
+    public function item_labels(): array {
+        $slides = (array) ($this->params['slides'] ?? []);
+        $hosts = (array) ($this->params['hosts'] ?? []);
+        return array_map(function ($item) use ($slides, $hosts) {
+            $a = (object) ['name' => $item, 'slide' => $slides[$item] ?? null, 'host' => $hosts[$item] ?? null];
+            if ($a->host !== null) {
+                return get_string($a->slide !== null ? 'itemcloudslide' : 'itemcloud', 'local_submissioncheck', $a);
+            }
+            return $a->slide !== null ? get_string('itemonslide', 'local_submissioncheck', $a) : $item;
+        }, $this->items);
+    }
+
+    /**
+     * The broken items this finding lists, as the student's red box shows them: name, short reason and place. Null
+     * when the finding is about the whole file rather than items in it.
+     *
+     * @return array|null [['name' => string, 'reason' => string, 'place' => string|null, 'target' => string|null], ...]
+     */
+    public function broken_items(): ?array {
+        if (!in_array($this->code, ['linkedmedia', 'cloudmedia', 'brokenlink'], true)) {
+            return null;
+        }
+        $slides = (array) ($this->params['slides'] ?? []);
+        $hosts = (array) ($this->params['hosts'] ?? []);
+        $targets = (array) ($this->params['targets'] ?? []);
+        $items = [];
+        foreach ($this->items as $name) {
+            $host = $hosts[$name] ?? null;
+            if ($this->code === 'linkedmedia') {
+                $reason = get_string('brokenreason_local', 'local_submissioncheck');
+            } else if ($this->code === 'cloudmedia') {
+                $reason = get_string('brokenreason_cloud', 'local_submissioncheck', $host);
+            } else {
+                $reason = $host === null ? get_string('brokenreason_locallink', 'local_submissioncheck')
+                    : get_string('brokenreason_signinlink', 'local_submissioncheck', $host);
+            }
+            $items[] = [
+                'name' => $name,
+                'reason' => $reason,
+                'place' => isset($slides[$name]) ? get_string('brokenplace_slide', 'local_submissioncheck', $slides[$name]) : null,
+                'target' => $targets[$name] ?? null,
+            ];
+        }
+        return $items;
     }
 
     /**
@@ -84,9 +135,10 @@ class finding {
      * @return string
      */
     public function get_summary(): string {
-        return get_string('findingshort_' . $this->code, 'local_submissioncheck', (object) ($this->localised_params() + [
-            'items' => implode(', ', $this->items),
-        ]));
+        return get_string('findingshort_' . $this->code, 'local_submissioncheck', (object) (array_filter(
+            $this->localised_params(),
+            'is_scalar'
+        ) + ['items' => implode(', ', $this->item_labels())]));
     }
 
     /**
