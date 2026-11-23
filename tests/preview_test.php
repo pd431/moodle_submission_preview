@@ -20,7 +20,7 @@ use local_submissioncheck\local\html_preview;
 use local_submissioncheck\local\inspected_file;
 use local_submissioncheck\local\preview;
 use local_submissioncheck\local\testing;
-use local_submissioncheck\local\word_copy;
+use local_submissioncheck\local\preview_copy;
 
 /**
  * Which preview a file gets, and the previews made on the server.
@@ -32,12 +32,12 @@ use local_submissioncheck\local\word_copy;
  * @covers     \local_submissioncheck\local\preview
  * @covers     \local_submissioncheck\local\html_preview
  * @covers     \local_submissioncheck\local\inspected_file
- * @covers     \local_submissioncheck\local\word_copy
+ * @covers     \local_submissioncheck\local\preview_copy
  */
 #[\PHPUnit\Framework\Attributes\CoversClass(local\preview::class)]
 #[\PHPUnit\Framework\Attributes\CoversClass(local\html_preview::class)]
 #[\PHPUnit\Framework\Attributes\CoversClass(local\inspected_file::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\word_copy::class)]
+#[\PHPUnit\Framework\Attributes\CoversClass(local\preview_copy::class)]
 final class preview_test extends \advanced_testcase {
     /** @var int Item id of the next stored file. */
     protected $itemid = 0;
@@ -196,8 +196,8 @@ final class preview_test extends \advanced_testcase {
      * A linked picture in a Word document becomes a marker at its place, with its size in pixels; a document without
      * linked items is sent as it is.
      */
-    public function test_word_copy(): void {
-        $path = word_copy::prepare($this->fixture('linked-image.docx'));
+    public function test_preview_copy(): void {
+        $path = preview_copy::prepare($this->fixture('linked-image.docx'));
         $this->assertNotNull($path);
         $zip = new \ZipArchive();
         $zip->open($path);
@@ -208,7 +208,7 @@ final class preview_test extends \advanced_testcase {
         $this->assertStringNotContainsString('r:link=', $xml);
         $this->assertStringContainsString('Respondents rated timely feedback highest.', $xml);
 
-        $this->assertNull(word_copy::prepare($this->fixture('essay.docx')));
+        $this->assertNull(preview_copy::prepare($this->fixture('essay.docx')));
     }
 
     /**
@@ -228,8 +228,8 @@ final class preview_test extends \advanced_testcase {
      * A drawing group becomes the pictures in it; text in its text box joins the text; a group with neither becomes a
      * "not shown" marker at its size. A plain document is sent as it is.
      */
-    public function test_word_copy_groups(): void {
-        $path = word_copy::prepare($this->fixture('grouped-pictures.docx'));
+    public function test_preview_copy_groups(): void {
+        $path = preview_copy::prepare($this->fixture('grouped-pictures.docx'));
         $this->assertNotNull($path);
         $zip = new \ZipArchive();
         $zip->open($path);
@@ -248,7 +248,7 @@ final class preview_test extends \advanced_testcase {
     /**
      * Alternative content without a drawing is left alone; nested blocks are unwrapped from the inside.
      */
-    public function test_word_copy_alternate_content(): void {
+    public function test_preview_copy_alternate_content(): void {
         $kept = '<w:r><mc:AlternateContent><mc:Choice Requires="w14"><w:t>new</w:t></mc:Choice><mc:Fallback><w:t>old</w:t>' .
             '</mc:Fallback></mc:AlternateContent></w:r>';
         $shape = '<w:r><mc:AlternateContent><mc:Choice Requires="wps"><w:drawing><wp:inline><wp:extent cx="952500" cy="476250"/>' .
@@ -256,8 +256,8 @@ final class preview_test extends \advanced_testcase {
             '<wps:txbx><w:txbxContent><w:p><w:r><w:t>Boxed words</w:t></w:r></w:p></w:txbxContent></wps:txbx></wps:wsp>' .
             '</a:graphicData></a:graphic></wp:inline></w:drawing></mc:Choice><mc:Fallback><w:pict/></mc:Fallback>' .
             '</mc:AlternateContent></w:r>';
-        $out = word_copy::flatten('<w:body><w:p>' . $kept . $shape . '</w:p></w:body>');
-        $nested = word_copy::flatten('<w:body><w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">' . $kept .
+        $out = preview_copy::flatten('<w:body><w:p>' . $kept . $shape . '</w:p></w:body>');
+        $nested = preview_copy::flatten('<w:body><w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">' . $kept .
             '<w:drawing><wp:inline><wp:extent cx="9525" cy="9525"/><a:graphic><a:graphicData uri="x"/></a:graphic></wp:inline>' .
             '</w:drawing></mc:Choice><mc:Fallback/></mc:AlternateContent></w:r></w:p></w:body>');
         $this->assertStringContainsString($kept . '<w:t xml:space="preserve">[[submissioncheck-notshown|1|1]]</w:t>', $nested);
@@ -266,7 +266,7 @@ final class preview_test extends \advanced_testcase {
         $this->assertStringNotContainsString('<w:pict/>', $out);
         $this->assertSame(
             '<w:body><w:p>No drawings</w:p></w:body>',
-            word_copy::flatten('<w:body><w:p>No drawings</w:p></w:body>')
+            preview_copy::flatten('<w:body><w:p>No drawings</w:p></w:body>')
         );
     }
 
@@ -274,8 +274,8 @@ final class preview_test extends \advanced_testcase {
      * An online video on sign-in storage becomes a marker at its place with its name, service and size; one on
      * YouTube is left as it is.
      */
-    public function test_word_copy_online_video(): void {
-        $path = word_copy::prepare($this->fixture('sharepoint-video.docx'));
+    public function test_preview_copy_online_video(): void {
+        $path = preview_copy::prepare($this->fixture('sharepoint-video.docx'));
         $this->assertNotNull($path);
         $zip = new \ZipArchive();
         $zip->open($path);
@@ -284,6 +284,6 @@ final class preview_test extends \advanced_testcase {
         unlink($path);
         $this->assertStringContainsString('[[submissioncheck-cloud|untitled.mp4|OneDrive|400|225]]', $xml);
         $this->assertStringNotContainsString('webVideoPr', $xml);
-        $this->assertNull(word_copy::prepare($this->fixture('youtube-video.docx')));
+        $this->assertNull(preview_copy::prepare($this->fixture('youtube-video.docx')));
     }
 }

@@ -37,13 +37,13 @@ const OPTIONS = {
     experimental: false,
 };
 
-/** Marker the server puts where a linked item was (classes/local/word_copy.php). */
+/** Marker the server puts where a linked item was (classes/local/preview_copy.php). */
 const MISSING = /\[\[submissioncheck-missing\|([^|\]]*)\|(\d+)\|(\d+)\]\]/;
 
-/** Marker the server puts where media on sign-in storage was (classes/local/word_copy.php). */
+/** Marker the server puts where media on sign-in storage was (classes/local/preview_copy.php). */
 const CLOUD = /\[\[submissioncheck-cloud\|([^|\]]*)\|([^|\]]*)\|(\d+)\|(\d+)\]\]/;
 
-/** Marker the server puts where a drawing the renderer cannot draw was (classes/local/word_copy.php). */
+/** Marker the server puts where a drawing the renderer cannot draw was (classes/local/preview_copy.php). */
 const NOT_SHOWN = /\[\[submissioncheck-notshown\|(\d+)\|(\d+)\]\]/;
 
 /**

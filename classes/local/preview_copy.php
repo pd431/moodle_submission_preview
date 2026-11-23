@@ -19,15 +19,15 @@ namespace local_submissioncheck\local;
 use local_submissioncheck\local\checks\linked_media;
 
 /**
- * The temporary copy of a Word document that the browser draws: each picture, video or sound file it only links to becomes a
- * text marker at its place, which amd/src/preview.js replaces with the missing-item box. The student's file is not
- * changed; this works on a temporary copy.
+ * The temporary copy of a Word or PowerPoint file that is previewed, by the browser or the site converter. For the
+ * browser, each picture, video or sound file a Word document only links to becomes a text marker at its place, which
+ * amd/src/preview.js replaces with the missing-item box. The student's file is never changed.
  *
  * @package    local_submissioncheck
  * @copyright  2026 Pierre Camaly de Brosses - University of Exeter
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class word_copy {
+class preview_copy {
     /** Start of a linked-item marker; amd/src/preview.js looks for the same text. */
     public const START = '[[submissioncheck-missing|';
     /** Start of a marker for media on sign-in storage; amd/src/preview.js looks for the same text. */
