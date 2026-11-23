@@ -93,7 +93,8 @@ const replaceMarkers = async(doc) => {
  * @returns {Promise<Object>}
  */
 const loadRenderer = () => new Promise((resolve, reject) => {
-    window.require(['local_submissioncheck/docxpreview'], resolve, reject);
+    // The renderer is third-party code kept outside amd/src, so it is asked for by its address, not by a module name.
+    window.require([M.cfg.wwwroot + '/local/submissioncheck/thirdparty/docxpreview.min.js?v=0.4.1'], resolve, reject);
 });
 
 /**

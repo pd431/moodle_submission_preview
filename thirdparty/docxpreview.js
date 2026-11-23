@@ -1,7 +1,9 @@
 // Third-party code, built for this plugin: docx-preview 0.4.1 (Apache-2.0, https://github.com/VolodymyrBaydalka/docxjs)
 // with JSZip 3.10.2 (MIT, https://github.com/Stuk/jszip), bundled with esbuild 0.24.2 from
 // `export {renderAsync} from 'docx-preview';` (--bundle --format=iife --global-name=docxPreview --target=es2019).
-// Listed in thirdpartylibs.xml. Do not edit: rebuild it.
+// Listed in thirdpartylibs.xml. Do not edit: rebuild it, then minify it to docxpreview.min.js with terser.
+// It is kept out of amd/src so that Moodle's script lint and build leave it alone; preview.js loads the minified
+// file by its address.
 define([], function() {
 var docxPreview = (() => {
   var __create = Object.create;

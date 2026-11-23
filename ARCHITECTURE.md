@@ -15,7 +15,7 @@ One owner per concern. Change a rule in its owner; callers pass flags or data an
 | Which preview a file gets and its state (ready, pending, unsupported, unavailable, too large); handing the converter the prepared copy and keeping its PDF | `classes/local/preview.php` | `tests/preview_test.php` |
 | Server-rendered HTML previews (spreadsheet, plain text, text-only outline) | `classes/local/html_preview.php` | `tests/preview_test.php` |
 | Sending a preview to the browser, with its access check and sandbox headers | `preview.php` | `tests/behat/bundled_preview.feature` |
-| Drawing a .docx in the browser, and replacing linked-item markers with the missing-item box | `amd/src/preview.js` (loads the bundled `amd/src/docxpreview.js`) | `tests/behat/bundled_preview.feature` |
+| Drawing a .docx in the browser, and replacing linked-item markers with the missing-item box | `amd/src/preview.js` (loads the bundled `thirdparty/docxpreview.min.js`) | `tests/behat/bundled_preview.feature` |
 | Per-file report data (broken items, facts, preview), which state the preview frame shows, the second-press label | `classes/output/report_builder.php` | `tests/behat/assign_submission_checks.feature` |
 | Facts about a file (kind, pages, words, slides, sheets, formulas, charts, pictures, size), cached by content | `classes/local/file_facts.php` | `tests/file_facts_test.php` |
 | Where a linked file sits (slide or presentation page); online videos and media on sign-in storage, and naming the service; text links to local files and sign-in storage | `classes/local/checks/linked_media.php` | `tests/checks_test.php`, `tests/behat/online_video_links.feature` |
