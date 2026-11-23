@@ -1,4 +1,4 @@
-@mod_assign @local_submissioncheck @_file_upload @javascript
+@mod_assign @local @local_submissioncheck @_file_upload @javascript
 Feature: Students get a preview of their file even when the site has no document converter
   In order to check what I submitted on any site
   As a student

@@ -36,13 +36,13 @@
         <h4 class="local-submissioncheck-brokenheading">{{#pix}}i/warning, core{{/pix}}{{brokenheading}}</h4>
         <p class="local-submissioncheck-brokensub">{{#str}}brokensub, local_submissioncheck{{/str}}</p>
         <ul class="local-submissioncheck-brokenlist">
-            {{#brokenshown}}{{> local_submissioncheck/broken_item }}{{/brokenshown}}
+            {{#brokenshown}}<li>{{> local_submissioncheck/broken_item }}</li>{{/brokenshown}}
         </ul>
         {{#hasbrokenmore}}
         <details class="local-submissioncheck-brokenmore">
             <summary>{{brokenmorelabel}}</summary>
             <ul class="local-submissioncheck-brokenlist">
-                {{#brokenmore}}{{> local_submissioncheck/broken_item }}{{/brokenmore}}
+                {{#brokenmore}}<li>{{> local_submissioncheck/broken_item }}</li>{{/brokenmore}}
             </ul>
         </details>
         {{/hasbrokenmore}}

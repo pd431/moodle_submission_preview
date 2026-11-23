@@ -1,4 +1,4 @@
-@mod_quiz @local_submissioncheck @javascript @_file_upload
+@mod_quiz @local @local_submissioncheck @javascript @_file_upload
 Feature: Students see checks and a preview of files attached to quiz essay questions
   In order to avoid attaching a broken, empty or wrong file in a quiz
   As a student

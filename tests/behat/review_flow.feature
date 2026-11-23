@@ -1,4 +1,4 @@
-@mod_assign @local_submissioncheck @_file_upload @javascript
+@mod_assign @local @local_submissioncheck @_file_upload @javascript
 Feature: Students review each submitted file on its own page before confirming
   In order to check every file I submitted without scrolling past previews to find the answers
   As a student

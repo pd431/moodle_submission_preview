@@ -1,4 +1,4 @@
-@mod_assign @local_submissioncheck @_file_upload @javascript
+@mod_assign @local @local_submissioncheck @_file_upload @javascript
 Feature: Online videos and media on sign-in storage are flagged
   In order not to submit a video my marker cannot open
   As a student

@@ -51,6 +51,7 @@ class extension extends check {
         'ooxml' => 'kind_office', 'ole' => 'kind_oldoffice', 'pdf' => 'kind_pdf', 'odf' => 'kind_odf', 'rtf' => 'kind_rtf',
         'jpeg' => 'kind_image', 'png' => 'kind_image', 'gif' => 'kind_image', 'zip' => 'kind_zip', 'html' => 'kind_html',
         'iwork' => 'kind_iwork', 'text' => 'kind_text',
+        'mp3' => 'kind_sound', 'wav' => 'kind_sound', 'ogg' => 'kind_sound', 'mp4' => 'kind_video', 'webm' => 'kind_video',
     ];
 
     /**
@@ -68,7 +69,7 @@ class extension extends check {
      * @return int
      */
     public function get_version(): int {
-        return 1;
+        return 2;
     }
 
     /**

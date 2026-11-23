@@ -28,7 +28,6 @@ use local_submissioncheck\local\inspected_file;
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \local_submissioncheck\local\file_facts
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(local\file_facts::class)]
 final class file_facts_test extends \advanced_testcase {
     /**
      * Facts of a fixture as label => value.

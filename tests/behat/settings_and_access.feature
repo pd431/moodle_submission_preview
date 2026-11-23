@@ -155,4 +155,3 @@ Feature: Turning submission check and preview on and deciding who sees results
     Then "Submission check and preview" "field" should appear after "How questions behave" "field"
     And "Submission check and preview" "field" should appear before "Review options" "text"
     And "#id_local_submissioncheck_header" "css_element" should not exist
-

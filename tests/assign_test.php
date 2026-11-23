@@ -38,10 +38,6 @@ require_once($CFG->dirroot . '/mod/assign/locallib.php');
  * @covers     \local_submissioncheck\local\confirmation
  * @covers     \local_submissioncheck\local\result_store
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(local\activation::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\adapter\assign::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\confirmation::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\result_store::class)]
 final class assign_test extends \advanced_testcase {
     /** @var \stdClass */
     protected $course;

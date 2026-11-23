@@ -1,4 +1,4 @@
-@mod_assign @local_submissioncheck @_file_upload @javascript
+@mod_assign @local @local_submissioncheck @_file_upload @javascript
 Feature: A damaged file is reported even when nothing about it is recognisable
   In order not to submit a file my marker cannot open
   As a student

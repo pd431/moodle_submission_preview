@@ -20,7 +20,7 @@ use local_submissioncheck\local\html_preview;
 use local_submissioncheck\local\inspected_file;
 use local_submissioncheck\local\preview;
 use local_submissioncheck\local\testing;
-use local_submissioncheck\local\word_copy;
+use local_submissioncheck\local\preview_copy;
 
 /**
  * Which preview a file gets, and the previews made on the server.
@@ -32,12 +32,8 @@ use local_submissioncheck\local\word_copy;
  * @covers     \local_submissioncheck\local\preview
  * @covers     \local_submissioncheck\local\html_preview
  * @covers     \local_submissioncheck\local\inspected_file
- * @covers     \local_submissioncheck\local\word_copy
+ * @covers     \local_submissioncheck\local\preview_copy
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(local\preview::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\html_preview::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\inspected_file::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\word_copy::class)]
 final class preview_test extends \advanced_testcase {
     /** @var int Item id of the next stored file. */
     protected $itemid = 0;
@@ -196,8 +192,8 @@ final class preview_test extends \advanced_testcase {
      * A linked picture in a Word document becomes a marker at its place, with its size in pixels; a document without
      * linked items is sent as it is.
      */
-    public function test_word_copy(): void {
-        $path = word_copy::prepare($this->fixture('linked-image.docx'));
+    public function test_preview_copy(): void {
+        $path = preview_copy::prepare($this->fixture('linked-image.docx'));
         $this->assertNotNull($path);
         $zip = new \ZipArchive();
         $zip->open($path);
@@ -208,7 +204,7 @@ final class preview_test extends \advanced_testcase {
         $this->assertStringNotContainsString('r:link=', $xml);
         $this->assertStringContainsString('Respondents rated timely feedback highest.', $xml);
 
-        $this->assertNull(word_copy::prepare($this->fixture('essay.docx')));
+        $this->assertNull(preview_copy::prepare($this->fixture('essay.docx')));
     }
 
     /**
@@ -228,8 +224,8 @@ final class preview_test extends \advanced_testcase {
      * A drawing group becomes the pictures in it; text in its text box joins the text; a group with neither becomes a
      * "not shown" marker at its size. A plain document is sent as it is.
      */
-    public function test_word_copy_groups(): void {
-        $path = word_copy::prepare($this->fixture('grouped-pictures.docx'));
+    public function test_preview_copy_groups(): void {
+        $path = preview_copy::prepare($this->fixture('grouped-pictures.docx'));
         $this->assertNotNull($path);
         $zip = new \ZipArchive();
         $zip->open($path);
@@ -248,7 +244,7 @@ final class preview_test extends \advanced_testcase {
     /**
      * Alternative content without a drawing is left alone; nested blocks are unwrapped from the inside.
      */
-    public function test_word_copy_alternate_content(): void {
+    public function test_preview_copy_alternate_content(): void {
         $kept = '<w:r><mc:AlternateContent><mc:Choice Requires="w14"><w:t>new</w:t></mc:Choice><mc:Fallback><w:t>old</w:t>' .
             '</mc:Fallback></mc:AlternateContent></w:r>';
         $shape = '<w:r><mc:AlternateContent><mc:Choice Requires="wps"><w:drawing><wp:inline><wp:extent cx="952500" cy="476250"/>' .
@@ -256,8 +252,8 @@ final class preview_test extends \advanced_testcase {
             '<wps:txbx><w:txbxContent><w:p><w:r><w:t>Boxed words</w:t></w:r></w:p></w:txbxContent></wps:txbx></wps:wsp>' .
             '</a:graphicData></a:graphic></wp:inline></w:drawing></mc:Choice><mc:Fallback><w:pict/></mc:Fallback>' .
             '</mc:AlternateContent></w:r>';
-        $out = word_copy::flatten('<w:body><w:p>' . $kept . $shape . '</w:p></w:body>');
-        $nested = word_copy::flatten('<w:body><w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">' . $kept .
+        $out = preview_copy::flatten('<w:body><w:p>' . $kept . $shape . '</w:p></w:body>');
+        $nested = preview_copy::flatten('<w:body><w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps">' . $kept .
             '<w:drawing><wp:inline><wp:extent cx="9525" cy="9525"/><a:graphic><a:graphicData uri="x"/></a:graphic></wp:inline>' .
             '</w:drawing></mc:Choice><mc:Fallback/></mc:AlternateContent></w:r></w:p></w:body>');
         $this->assertStringContainsString($kept . '<w:t xml:space="preserve">[[submissioncheck-notshown|1|1]]</w:t>', $nested);
@@ -266,7 +262,7 @@ final class preview_test extends \advanced_testcase {
         $this->assertStringNotContainsString('<w:pict/>', $out);
         $this->assertSame(
             '<w:body><w:p>No drawings</w:p></w:body>',
-            word_copy::flatten('<w:body><w:p>No drawings</w:p></w:body>')
+            preview_copy::flatten('<w:body><w:p>No drawings</w:p></w:body>')
         );
     }
 
@@ -274,8 +270,8 @@ final class preview_test extends \advanced_testcase {
      * An online video on sign-in storage becomes a marker at its place with its name, service and size; one on
      * YouTube is left as it is.
      */
-    public function test_word_copy_online_video(): void {
-        $path = word_copy::prepare($this->fixture('sharepoint-video.docx'));
+    public function test_preview_copy_online_video(): void {
+        $path = preview_copy::prepare($this->fixture('sharepoint-video.docx'));
         $this->assertNotNull($path);
         $zip = new \ZipArchive();
         $zip->open($path);
@@ -284,6 +280,101 @@ final class preview_test extends \advanced_testcase {
         unlink($path);
         $this->assertStringContainsString('[[submissioncheck-cloud|untitled.mp4|OneDrive|400|225]]', $xml);
         $this->assertStringNotContainsString('webVideoPr', $xml);
-        $this->assertNull(word_copy::prepare($this->fixture('youtube-video.docx')));
+        $this->assertNull(preview_copy::prepare($this->fixture('youtube-video.docx')));
+    }
+
+    /**
+     * Open a prepared copy and return its parts.
+     *
+     * @param string $path
+     * @param string[] $names
+     * @return array name => content
+     */
+    protected function parts(string $path, array $names): array {
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($path, \ZipArchive::CHECKCONS));
+        $out = [];
+        foreach ($names as $name) {
+            $out[$name] = $zip->getFromName($name);
+        }
+        $zip->close();
+        unlink($path);
+        return $out;
+    }
+
+    /**
+     * The converter's copy of a Word document has an embedded placeholder picture in place of the linked one, with the
+     * missing-item sentence as alternative text, and no link left to the replaced item.
+     */
+    public function test_converter_copy_word(): void {
+        $path = preview_copy::prepare_for_converter($this->fixture('linked-image.docx'));
+        $this->assertNotNull($path);
+        $parts = $this->parts($path, ['word/document.xml', 'word/_rels/document.xml.rels',
+            'word/media/' . preview_copy::PLACEHOLDER_NAME, '[Content_Types].xml']);
+        $this->assertSame(1, substr_count($parts['word/document.xml'], 'r:embed="' . preview_copy::PLACEHOLDER_ID . '"'));
+        $this->assertStringContainsString(
+            'descr="graph1.png is not included in this document. A marker will not see it."',
+            $parts['word/document.xml']
+        );
+        $this->assertStringNotContainsString('r:link=', $parts['word/document.xml']);
+        $this->assertStringContainsString('Id="' . preview_copy::PLACEHOLDER_ID . '"', $parts['word/_rels/document.xml.rels']);
+        $this->assertStringNotContainsString('graph1.png', $parts['word/_rels/document.xml.rels']);
+        $this->assertNotEmpty($parts['word/media/' . preview_copy::PLACEHOLDER_NAME]);
+        $this->assertStringContainsString('Extension="png"', $parts['[Content_Types].xml']);
+        $this->assertNull(preview_copy::prepare_for_converter($this->fixture('essay.docx')));
+    }
+
+    /**
+     * The converter's copy of a presentation has the linked picture replaced at its place and size.
+     */
+    public function test_converter_copy_slides(): void {
+        $path = preview_copy::prepare_for_converter($this->fixture('linked-media.pptx'));
+        $this->assertNotNull($path);
+        $parts = $this->parts($path, ['ppt/slides/slide1.xml', 'ppt/slides/_rels/slide1.xml.rels',
+            'ppt/media/' . preview_copy::PLACEHOLDER_NAME]);
+        $slide = $parts['ppt/slides/slide1.xml'];
+        $this->assertSame(1, substr_count($slide, 'r:embed="' . preview_copy::PLACEHOLDER_ID . '"'));
+        $this->assertStringContainsString('<a:ext cx="3048000" cy="1714500"/>', $slide);
+        $this->assertStringNotContainsString('r:link="rId2"', $slide);
+        $this->assertStringNotContainsString('Id="rId2"', $parts['ppt/slides/_rels/slide1.xml.rels']);
+        $this->assertNotEmpty($parts['ppt/media/' . preview_copy::PLACEHOLDER_NAME]);
+        $doc = new \DOMDocument();
+        $this->assertTrue($doc->loadXML($slide));
+    }
+
+    /**
+     * Converting hands the stand-in the copy, keeps the student's file unchanged, and deletes the temporary copy after
+     * success and after failure; when the copy cannot be made, the file itself is handed over.
+     */
+    public function test_convert_hands_over_the_copy(): void {
+        testing::set('converter_down', false);
+        testing::set('test_converter', true);
+        $file = $this->fixture('linked-image.docx');
+        $hash = $file->get_contenthash();
+        preview::convert($file);
+        $handed = preview::stored($file, preview::AREA_HANDED);
+        $this->assertNotNull($handed);
+        $this->assertNotSame($hash, $handed->get_contenthash());
+        $this->assertSame($hash, get_file_storage()->get_file_by_id($file->get_id())->get_contenthash());
+        $this->assertNull(preview::stored($file, preview::AREA_COPY));
+
+        testing::set('converter_fails', true);
+        try {
+            preview::convert($file);
+            $this->fail('The stand-in converter should have failed.');
+        } catch (\coding_exception $e) {
+            $this->assertNull(preview::stored($file, preview::AREA_COPY));
+        }
+        testing::set('converter_fails', false);
+
+        testing::set('copy_fails', true);
+        preview::convert($file);
+        $this->assertDebuggingCalled();
+        $this->assertSame($hash, preview::stored($file, preview::AREA_HANDED)->get_contenthash());
+
+        $clean = $this->fixture('essay.docx');
+        testing::set('copy_fails', false);
+        preview::convert($clean);
+        $this->assertSame($clean->get_contenthash(), preview::stored($clean, preview::AREA_HANDED)->get_contenthash());
     }
 }

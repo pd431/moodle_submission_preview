@@ -38,7 +38,6 @@ require_once($CFG->dirroot . '/mod/assign/locallib.php');
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \local_submissioncheck\privacy\provider
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(provider::class)]
 final class provider_test extends provider_testcase {
     /** @var \stdClass */
     protected $course;

@@ -34,13 +34,6 @@ use local_submissioncheck\local\inspected_file;
  * @covers     \local_submissioncheck\local\checks\empty_text
  * @covers     \local_submissioncheck\local\inspected_file
  */
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\placeholder::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\opens::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\extension::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\encrypted::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\linked_media::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\checks\empty_text::class)]
-#[\PHPUnit\Framework\Attributes\CoversClass(local\inspected_file::class)]
 final class checks_test extends \advanced_testcase {
     /** @var string[] Temporary files to remove. */
     protected $temp = [];
@@ -337,8 +330,8 @@ final class checks_test extends \advanced_testcase {
         $this->assertSame([[], []], $this->run_checks($dir . 'clip.mp3', 'clip.mp3'));
         $this->assertSame(inspected_file::TYPE_MP3, (new inspected_file($dir . 'clip.mp3', 'clip.mp3'))->get_type());
         $this->assertSame([[], []], $this->run_checks($dir . 'essay.docx', 'essay.docx'));
-        // What a real MP3 named .docx reports today (recorded, not changed in this build).
-        $this->assertSame([[], []], $this->run_checks($dir . 'clip.mp3', 'clip.docx'));
+        // A real MP3 named .docx is named for what it is (beta9).
+        $this->assertSame([['wrongextension'], []], $this->run_checks($dir . 'clip.mp3', 'clip.docx'));
     }
 
     /**
@@ -368,5 +361,26 @@ final class checks_test extends \advanced_testcase {
             ['Needs sign-in: SharePoint', 'Reading list'],
             ['Link to a file on your computer', 'My notes'],
         ], array_map(fn($i) => [$i['reason'], $i['name']], $items));
+    }
+
+    /**
+     * Sound or video under a document or picture name says what it is; sound and video under their own names do not.
+     */
+    public function test_renamed_media(): void {
+        global $CFG;
+        $dir = $CFG->dirroot . '/local/submissioncheck/tests/fixtures/';
+        $this->assertSame([['wrongextension'], []], $this->run_checks($dir . 'sound-renamed.docx', 'sound-renamed.docx'));
+        $file = new inspected_file($dir . 'sound-renamed.docx', 'sound-renamed.docx');
+        $findings = (new local\checks\extension())->run($file);
+        $this->assertSame(
+            'sound-renamed.docx is named as a Word document but is actually a sound file.',
+            $findings[0]->get_message()
+        );
+        $file = new inspected_file($dir . 'video-renamed.pdf', 'video-renamed.pdf');
+        $findings = (new local\checks\extension())->run($file);
+        $this->assertSame('video-renamed.pdf is named as a PDF but is actually a video file.', $findings[0]->get_message());
+        $this->assertSame([[], []], $this->run_checks($dir . 'clip.mp3', 'clip.mp3'));
+        $this->assertSame([[], []], $this->run_checks($dir . 'video-renamed.pdf', 'talk.m4a'));
+        $this->assertSame([[], []], $this->run_checks($dir . 'video-renamed.pdf', 'talk.mp4'));
     }
 }
